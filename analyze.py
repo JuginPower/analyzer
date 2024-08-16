@@ -3,11 +3,11 @@ import re
 
 
 keywords = {'Lebensmittel': ["markt der prinz", "rewe", "lidl", "aldi", "netto",
-                             "polonia", "tegut", "edeka"]}
+                             "polonia", "tegut", "edeka", "SUDE MARKET"]}
 
-summe_lebensmittel = 0
+summe_lebensmittel = 0 # Verschwinden lassen wenns geht
 
-with open('Kontoumsaetze_Juli_2024.csv') as csvfile:
+with open('Kontoumsaetze_August_15.08.2024.csv') as csvfile:
     spamreader = csv.reader(csvfile, delimiter=';')
     custom_row = []
     
