@@ -2,6 +2,19 @@ import csv
 import re
 
 
+def to_float(str_number: str, absolut=True):
+
+    # Den Fall bearbeiten wenn der String länger als 5 ist
+
+    try:
+        if absolut:
+            return abs(float(str_number.replace(",", ".")))
+        return float(str_number.replace(",", "."))
+    
+    except ValueError as err:
+        return str(err)
+
+
 def sum_kewords(keywords: dict, row: list[str]):
 
     """Diese Funktion gibt für jedes Keyword in einem Dictionary"""
@@ -16,7 +29,7 @@ def sum_kewords(keywords: dict, row: list[str]):
         for value in item[1]:
             try:
                 if re.search(value, row[3] + row[4], re.IGNORECASE):
-                    soll = abs(float(row[-3].replace(",", ".")))
+                    soll = to_float(row[-3])
                     result[kategorie] += soll
 
             except IndexError as err:
@@ -28,7 +41,11 @@ def sum_kewords(keywords: dict, row: list[str]):
 def do_bilanzierung(row: list):
 
     try:
-        return row[15]
+        if len(row) == 18:
+            if len(row[-2]) > 0:
+                return to_float(row[-2], False)
+            return to_float(row[-3], False)
+        
     except IndexError as err:
         return str(err)
 
@@ -40,13 +57,21 @@ if __name__ == "__main__":
                                  "SUDE MARKET"]}
     
     res_rows = []
+    bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
-    with open('Kontoumsaetze_August_15.08.2024.csv') as csvfile:
+    with open('Kontoumsaetze_Juli_2024.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=';')
         
         for row in spamreader:
             res = sum_kewords(keywords, row)
             res_rows.append(res)
-
-            print(do_bilanzierung(row))
-    
+            bil = do_bilanzierung(row)
+            
+            if isinstance(bil, float):
+                if bil < 0:
+                    bilanz["Ausgaben"] += bil
+                elif bil > 0:
+                    bilanz["Einnahmen"] += bil
+            
+    bilanz["Bilanz"] = bilanz["Einnahmen"] + bilanz["Ausgaben"]
+    print(bilanz)
