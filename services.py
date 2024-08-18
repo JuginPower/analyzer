@@ -4,7 +4,7 @@ import re
 
 def to_float(str_number: str, absolut=True):
 
-    # Den Fall bearbeiten wenn der String länger als 5 ist
+    # Den Fall bearbeiten wenn der String länger als 6 ist
 
     try:
         if absolut:
@@ -15,7 +15,7 @@ def to_float(str_number: str, absolut=True):
         return str(err)
 
 
-def sum_kewords(keywords: dict, row: list[str]):
+def sum_kewords(keywords: dict, row: list[str]) -> str | dict:
 
     """Diese Funktion gibt für jedes Keyword in einem Dictionary"""
 
@@ -54,9 +54,11 @@ if __name__ == "__main__":
 
     keywords = {'Lebensmittel': ["markt der prinz", "rewe", "lidl", "aldi", 
                                  "netto", "polonia", "tegut", "edeka", 
-                                 "SUDE MARKET"]}
+                                 "SUDE MARKET"], 
+                                 'Mobilität': ["limebike", "tier mobility", 
+                                               "ruhrbahn"]}
     
-    res_rows = []
+    kategorien = {'Lebensmittel': 0, 'Mobilität': 0}
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
     with open('Kontoumsaetze_Juli_2024.csv') as csvfile:
@@ -64,7 +66,11 @@ if __name__ == "__main__":
         
         for row in spamreader:
             res = sum_kewords(keywords, row)
-            res_rows.append(res)
+
+            if isinstance(res, dict):
+                for key in res.keys():
+                    kategorien[key] += res.get(key)
+
             bil = do_bilanzierung(row)
             
             if isinstance(bil, float):
@@ -74,4 +80,5 @@ if __name__ == "__main__":
                     bilanz["Einnahmen"] += bil
             
     bilanz["Bilanz"] = bilanz["Einnahmen"] + bilanz["Ausgaben"]
-    print(bilanz)
+    
+    print(kategorien)
