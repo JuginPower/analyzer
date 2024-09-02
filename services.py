@@ -4,15 +4,24 @@ import re
 
 def to_float(str_number: str, absolut=True):
 
-    # Den Fall bearbeiten wenn der String länger als 6 ist
+    result = None
 
     try:
+        if len(str_number) > 7:
+            result = str_number.replace(".", "_").replace(",", ".")
+        
+        elif len(str_number) <= 7:
+            result = str_number.replace(",", ".")
+
         if absolut:
-            return abs(float(str_number.replace(",", ".")))
-        return float(str_number.replace(",", "."))
+            result = abs(float(result))
+        elif not absolut:
+            result = float(result)
     
     except ValueError as err:
         return str(err)
+    
+    return result
 
 
 def sum_kewords(keywords: dict, row: list[str]) -> str | dict:
@@ -56,7 +65,7 @@ if __name__ == "__main__":
                                  "netto", "polonia", "tegut", "edeka", 
                                  "SUDE MARKET"], 
                                  'Mobilität': ["limebike", "tier mobility", 
-                                               "ruhrbahn"]}
+                                               "ruhrbahn"]} # Datenbank benötigt
     
     kategorien = {'Lebensmittel': 0, 'Mobilität': 0}
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
@@ -79,6 +88,8 @@ if __name__ == "__main__":
                 elif bil > 0:
                     bilanz["Einnahmen"] += bil
             
-    bilanz["Bilanz"] = bilanz["Einnahmen"] + bilanz["Ausgaben"]
+    bilanz["Bilanz"] = round(bilanz["Einnahmen"] + bilanz["Ausgaben"], 2) 
+    # Eigene Dict schreiben mit round Funktion
     
     print(kategorien)
+    print(bilanz)

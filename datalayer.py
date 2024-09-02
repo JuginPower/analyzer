@@ -4,7 +4,7 @@ from datetime import datetime
 
 class Datamanager:
 
-    def __init__(self, connection="finance.sqlite3"):
+    def __init__(self, connection="buchhaltung.sqlite3"):
 
         self.connection_string = connection
 
