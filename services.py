@@ -1,5 +1,8 @@
 import csv
 import re
+from pathlib import Path
+import sys
+from datalayer import Datamanager
 
 
 def to_float(str_number: str, absolut=True):
@@ -61,16 +64,26 @@ def do_bilanzierung(row: list):
 
 if __name__ == "__main__":
 
+    aditional_path = Path("/home/eugen/Dokumente").resolve()
+    # sys.path.append(str(aditional_path))
+
     keywords = {'Lebensmittel': ["markt der prinz", "rewe", "lidl", "aldi", 
                                  "netto", "polonia", "tegut", "edeka", 
                                  "SUDE MARKET"], 
                                  'Mobilität': ["limebike", "tier mobility", 
                                                "ruhrbahn"]} # Datenbank benötigt
     
+    dm = Datamanager(connection=f"{aditional_path}/finance.db")
+
+    database_keywords = dm.select("select kategorien.name, keywords.name "
+                                  "from kategorien "
+                                  "inner join keywords "
+                                  "on kategorien.kid=keywords.kid;")
+    
     kategorien = {'Lebensmittel': 0, 'Mobilität': 0}
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
-    with open('Kontoumsaetze_Juli_2024.csv') as csvfile:
+    with open('Kontoumsaetze_August_2024.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=';')
         
         for row in spamreader:

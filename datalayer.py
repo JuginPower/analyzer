@@ -19,9 +19,10 @@ class Datamanager:
 
         try:
             mycursor.execute(sqlstring)
-        except sqlite3.OperationalError as err:
-            print(datetime.now())
-            print(err.args)
+        except sqlite3.Error as err:
+            print("Zeitpunkt:", datetime.now())
+            print(err.sqlite_errorcode)
+            print(err.sqlite_errorname)
 
         result = mycursor.fetchall()
         mydb.close()
