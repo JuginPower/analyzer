@@ -1,7 +1,6 @@
 import csv
 import re
 from pathlib import Path
-import sys
 from datalayer import Datamanager
 
 
@@ -27,26 +26,30 @@ def to_float(str_number: str, absolut=True):
     return result
 
 
-def sum_kewords(keywords: dict, row: list[str]) -> str | dict:
+def sum_kewords(keywords: list, row: list[str]) -> str | dict:
 
-    """Diese Funktion gibt für jedes Keyword in einem Dictionary"""
+    """Diese Funktion addiert den Sollwert einer jeden Kategorie bei einem 
+    Match der Row mit den Keywords"""
 
     result = {}
 
-    for item in keywords.items():
-        kategorie: str = item[0]
+    for val in keywords:
+        kategorie: str = val[0]
 
         result[kategorie] = 0
+    
+    for val in keywords:
+        try:
+            if re.search(val[1], row[3] + row[4], re.IGNORECASE):
+                soll = to_float(row[-3])
+                result[val[0]] += soll
 
-        for value in item[1]:
-            try:
-                if re.search(value, row[3] + row[4], re.IGNORECASE):
-                    soll = to_float(row[-3])
-                    result[kategorie] += soll
+        except (IndexError, TypeError):
+            continue
+    
+    if sum(result.values()) == 0 and len(row) == 18:
+        return f"Nicht erfasst: {row[0] + ", " + row[2] + " " + row[3] + " " + row[4] + ": " + row[-3] + row[-2]}"
 
-            except IndexError as err:
-                return str(err)
-            
     return result
 
 
@@ -66,24 +69,20 @@ if __name__ == "__main__":
 
     aditional_path = Path("/home/eugen/Dokumente").resolve()
     # sys.path.append(str(aditional_path))
-
-    keywords = {'Lebensmittel': ["markt der prinz", "rewe", "lidl", "aldi", 
-                                 "netto", "polonia", "tegut", "edeka", 
-                                 "SUDE MARKET"], 
-                                 'Mobilität': ["limebike", "tier mobility", 
-                                               "ruhrbahn"]} # Datenbank benötigt
     
     dm = Datamanager(connection=f"{aditional_path}/finance.db")
 
-    database_keywords = dm.select("select kategorien.name, keywords.name "
-                                  "from kategorien "
-                                  "inner join keywords "
-                                  "on kategorien.kid=keywords.kid;")
+    keywords = dm.select("select kategorien.name, keywords.name from kategorien "
+                         "inner join keywords on kategorien.kid=keywords.kid;")
     
-    kategorien = {'Lebensmittel': 0, 'Mobilität': 0}
+    kategorien = {}
+
+    for kat in set([k[0] for k in keywords]):
+        kategorien[kat] = 0
+        
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
-    with open('Kontoumsaetze_August_2024.csv') as csvfile:
+    with open('Kontoumsaetze_September_2024.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=';')
         
         for row in spamreader:
@@ -92,6 +91,9 @@ if __name__ == "__main__":
             if isinstance(res, dict):
                 for key in res.keys():
                     kategorien[key] += res.get(key)
+            
+            elif isinstance(res, str):
+                print(res)
 
             bil = do_bilanzierung(row)
             
@@ -104,5 +106,6 @@ if __name__ == "__main__":
     bilanz["Bilanz"] = round(bilanz["Einnahmen"] + bilanz["Ausgaben"], 2) 
     # Eigene Dict schreiben mit round Funktion
     
+    print()
     print(kategorien)
     print(bilanz)
