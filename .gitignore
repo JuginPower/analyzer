@@ -1,5 +1,6 @@
-*.csv
+data/
 .vscode/
 docs/
 myenv/
 __pycache__/
+.idea/

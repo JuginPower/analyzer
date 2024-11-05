@@ -1,8 +1,11 @@
 import csv
 import re
 from pathlib import Path
+import os
 from datalayer import Datamanager
 
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 def to_float(str_number: str, absolut=True):
 
@@ -66,11 +69,8 @@ def do_bilanzierung(row: list):
 
 
 if __name__ == "__main__":
-
-    aditional_path = Path("/home/eugen/Dokumente").resolve()
-    # sys.path.append(str(aditional_path))
     
-    dm = Datamanager(connection=f"{aditional_path}/finance.db")
+    dm = Datamanager(os.path.join(BASE_DIR, "finance.sqlite3"))
 
     keywords = dm.select("select kategorien.name, keywords.name from kategorien "
                          "inner join keywords on kategorien.kid=keywords.kid;")
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
-    with open('Kontoumsaetze_September_2024.csv') as csvfile:
+    with open('data/Kontoumsaetze_Oktober_2024.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=';')
         
         for row in spamreader:
