@@ -1,31 +1,25 @@
-import csv
-from helper import to_float
-from datalayer import Datamanager
-from pathlib import Path
-import os
+from funcs import to_float, get_database_file
+import pandas as pd
+import sqlite3
 
 
-data_file = "data/DAX Historische Daten.csv"
-indiz_id = 5
-values = []
+database_file = get_database_file()
+data_file = "data/DAX-Weekly-09.01.2014-03.11.2024.csv"
+conn = sqlite3.connect(database_file)
+df = pd.read_csv(data_file)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-database_file = os.path.join(BASE_DIR, "finance.sqlite3")
-dm = Datamanager(database_file)
+for column in df.columns:
+    try:
+        df[column] = df[column].apply(to_float)
+    except ValueError:
+        continue
 
-with open(data_file, "r") as df:
-    data = csv.reader(df, delimiter=",")
-    for line in data:
-        try:
-            float_number = to_float(line[1])
-            date = line[0]
-        except ValueError:
-            continue
-        else:
-            values.append(tuple([date, indiz_id, float_number]))
+    except TypeError as err:
+        print("Error raised in column:", column)
 
-result = dm.query("insert into data values (?, ?, ?);", values)
-print("Rows inserted:", result)
-
-if result > 0:
-    os.remove(data_file)
+df.to_sql(name="data", con=conn, if_exists='append', index_label=['date', 'indiz_id', 'price'])
+# Muss noch herausfinden wie ich nur bestimmte Spalten in die Datenbank schreibe.
+# Brauche eine in memory Testdatenbank
+# Muss die Datenbank auch redesignen, ich brauche low, high, close Spalten.
+# Muss denke ich auch die Häufigkeit des Crawlers höher machen.
+# Brauche eine Tabelle die temporär in fünf bis 15-Minuten-Takt Daten nur für einen ganzen Tag speichert.

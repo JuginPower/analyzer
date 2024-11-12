@@ -6,7 +6,7 @@ import os
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-database_file = os.path.join(BASE_DIR, "finance.sqlite3")
+database_file = os.path.join(BASE_DIR, "finance.sqlite3") # Habe jetzt Funktionen dafür, redisignen
 dm = Datamanager(database_file)
 
 def check_presence(tablename: str, column: str, filtername: str):
