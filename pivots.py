@@ -1,13 +1,12 @@
 from funcs import to_float
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
-# data_file = "data/DAX-Daily-07.01.2014-01.11.2024.csv"
-# data_file = "data/DAX-Weekly-09.01.2014-03.11.2024.csv"
 data_file = "data/DAX-Monthly-03.01.2000-12.11.2024.csv"
 df = pd.read_csv(data_file)
-
 crosses = []
+probabilities = []
 
 for column in df.columns:
     if column == "Datum":
@@ -62,7 +61,7 @@ for index, row in df.iterrows():
 
 for column in df.columns[5:]:
     probability = round(([d.get("pivotname") for d in crosses].count(column) / len(df)) * 100, 3)
-    print(f"The probability that the price reaches the {column} line: {probability} %")
+    probabilities.append({column:probability})
 
-
-# Bei R1mid 74,16 %
+plot = df.plot(title="My Pivots", kind="line")
+plt.show()

@@ -3,18 +3,12 @@ from requests.auth import HTTPBasicAuth
 from datalayer import Datamanager
 from pathlib import Path
 import os
+from datetime import datetime
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-database_file = os.path.join(BASE_DIR, "finance.sqlite3") # Habe jetzt Funktionen dafür, redisignen
+database_file = os.path.join(BASE_DIR, "finance.sqlite3")
 dm = Datamanager(database_file)
-
-def check_presence(tablename: str, column: str, filtername: str):
-    result = dm.select(f"select {column} from {tablename} where {column}='{filtername}';")
-    if len(result) == 0:
-        return False
-    return True
-
 
 url = "https://eugenkraft.com/stock"
 username = "eugen"
@@ -28,17 +22,31 @@ if len(list_tables) < 2:
 
 elif 299 > res.status_code >= 200:
     data_source = res.json()
+    data_source.sort(key=lambda k: k.get("indiz"))
+    data_source.sort(key=lambda k: datetime.strptime(k.get("datum").split(",")[0], "%d-%m-%Y"))
+    old_indiz = None
+    old_date = None
+    numbers = []
     for item in data_source:
-        data = item.get("data")
-        datum = item.get("datum")
-        indiz = item.get("indiz")
 
-        if not check_presence(tablename="indiz", column="name", filtername=indiz):
-            result = dm.query(f"insert into indiz (name) values ('{indiz}');")
+        actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
 
-        indiz_id = dm.select(f"select indiz_id from indiz where name='{indiz}';")[0][0]
-        result = dm.query(f"insert into data values(?, ?, ?);", val=(datum, indiz_id, data))
-        print(result)
+        if not old_indiz:
+            old_indiz = item.get("indiz")
+
+        if not old_date:
+            old_date = actual_date_obj
+
+        if old_date.day == actual_date_obj.day and isinstance(old_indiz, str) and old_indiz == item.get("indiz"):
+            numbers.append(item.get("data"))
+
+        else:
+            indiz_id = dm.select(f"select indiz_id from indiz where name='{old_indiz}';")[0][0]
+            result = dm.query("insert into data values (?, ?, ?, ?, ?, ?);", tuple([old_date.strftime("%d-%m-%Y"), indiz_id, numbers[0], max(numbers), min(numbers), numbers[-1]]))
+            old_indiz = item.get("indiz")
+            old_date = actual_date_obj
+            numbers = []
+            print(result)
 
 elif not (299 > res.status_code >= 200):
     raise ArithmeticError(f"Status Code: {res.status_code} occured!")
