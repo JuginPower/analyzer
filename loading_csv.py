@@ -1,11 +1,8 @@
-from funcs import to_float, get_database_file
+from funcs import to_float
 import pandas as pd
-import sqlite3
 
 
-database_file = get_database_file()
-data_file = "data/DAX-Weekly-09.01.2014-03.11.2024.csv"
-conn = sqlite3.connect(database_file)
+data_file = "data/DAX-Monthly-03.01.2000-12.11.2024.csv"
 df = pd.read_csv(data_file)
 
 for column in df.columns:
@@ -17,7 +14,7 @@ for column in df.columns:
     except TypeError as err:
         print("Error raised in column:", column)
 
-df.to_sql(name="data", con=conn, if_exists='append', index_label=['date', 'indiz_id', 'price'])
+
 # Muss noch herausfinden wie ich nur bestimmte Spalten in die Datenbank schreibe.
 # Brauche eine in memory Testdatenbank
 # Muss die Datenbank auch redesignen, ich brauche low, high, close Spalten.

@@ -4,3 +4,4 @@ docs/
 myenv/
 __pycache__/
 .idea/
+*.png
