@@ -10,6 +10,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 database_file = os.path.join(BASE_DIR, "finance.sqlite3")
 dm = Datamanager(database_file)
 
+def check_presence(tablename: str, column: str, filtername: str):
+    result = dm.select(f"select {column} from {tablename} where {column}='{filtername}';")
+    if len(result) == 0:
+        return False
+    return True
+
 url = "https://eugenkraft.com/stock"
 username = "eugen"
 passwd = "F9^q5(4lY:9}pm"
@@ -30,9 +36,14 @@ elif 299 > res.status_code >= 200:
     for item in data_source:
 
         actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
+        actual_indiz = item.get("indiz")
+
+        if not check_presence(tablename="indiz", column="name", filtername=actual_indiz):
+            result = dm.query(f"insert into indiz (name) values ('{actual_indiz}');")
+            print("New Indiz inserted into indiz:", actual_indiz)
 
         if not old_indiz:
-            old_indiz = item.get("indiz")
+            old_indiz = actual_indiz
 
         if not old_date:
             old_date = actual_date_obj
