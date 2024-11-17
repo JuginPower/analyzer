@@ -51,5 +51,5 @@ elif 299 > res.status_code >= 200:
 elif not (299 > res.status_code >= 200):
     raise ArithmeticError(f"Status Code: {res.status_code} occured!")
 
-"""res = requests.delete(url, auth=HTTPBasicAuth(username, passwd))
-print("Status Code from DELETE request:", res.status_code)"""
+res = requests.delete(url, auth=HTTPBasicAuth(username, passwd))
+print("Status Code from DELETE request:", res.status_code)
