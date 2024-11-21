@@ -1,6 +1,6 @@
 import requests
 from requests.auth import HTTPBasicAuth
-from upload_data import AdvancedLoader
+from classes import AdvancedLoader
 from pathlib import Path
 import os
 
@@ -22,6 +22,5 @@ if 299 > res.status_code >= 200:
 elif not (299 > res.status_code >= 200):
     raise ArithmeticError(f"Status Code: {res.status_code} occured!")
 
-"""res = requests.delete(url, auth=HTTPBasicAuth(username, passwd))
+res = requests.delete(url, auth=HTTPBasicAuth(username, passwd))
 print("Status Code from DELETE request:", res.status_code)
-"""

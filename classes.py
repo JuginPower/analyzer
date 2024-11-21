@@ -1,6 +1,7 @@
 from datalayer import Datamanager
 from datetime import datetime
 import sqlite3
+import json
 
 
 class BaseLoader(Datamanager):
@@ -16,19 +17,35 @@ class BaseLoader(Datamanager):
 
     def upload(self, indiz_name: str, date: datetime, values: list) -> bool:
 
-        if len(values) < 95: # Wenn zu wenig Values dann unvollständiger Tag.
-            return False
-
         try:
+            date = date.strftime("%d-%m-%Y")
             indiz_id = self.select(f"select indiz_id from indiz where name='{indiz_name}';")[0][0]
-            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", tuple(
-                [date.strftime("%d-%m-%Y"), indiz_id, values[0], max(values), min(values), values[-1]]))
+
+            with open("tmp.jsonl", "a+") as file:
+
+                for line in file.readlines():
+                    line = json.loads(line)
+                    if date == line.get("date") and indiz_id == line.get("indiz_id"):
+                        values.extend(line.get("values"))
+
+                if len(values) < 77:
+                    write_line = json.dumps({"date": date, "indiz_id": indiz_id, "values": values}) + "\n"
+                    file.write(write_line)
+
+                else:
+                    opening = values[0]
+                    high = max(values)
+                    low = min(values)
+                    close = values[-1]
+                    result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
+                                        tuple([date, indiz_id, opening, high, low, close]))
 
         except (IndexError, sqlite3.Error) as err:
             raise err
 
         else:
             return True
+
 
 class ApiLoader(BaseLoader):
 
@@ -74,6 +91,7 @@ class ApiLoader(BaseLoader):
 
             return True
 
+
 class AdvancedLoader(ApiLoader):
 
     def __init__(self, database_name):
@@ -96,5 +114,4 @@ class AdvancedLoader(ApiLoader):
         except KeyError:
             super().upload(data_source)
 
-        else:
-            return True
+        return True
