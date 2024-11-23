@@ -1,13 +1,18 @@
 from datalayer import Datamanager
 from datetime import datetime
 import sqlite3
-import json
+from pathlib import Path
+import os
 
 
 class BaseLoader(Datamanager):
 
-    def __init__(self, database_name: str):
-        super().__init__(database_name)
+    def __init__(self):
+
+        base_dir = Path(__file__).resolve().parent.parent
+        database_file = os.path.join(base_dir, "finance.sqlite3")
+
+        super().__init__(database_file)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
         result = self.select(f"select {column} from {tablename} where {column}='{filtername}';")
@@ -20,27 +25,31 @@ class BaseLoader(Datamanager):
         try:
             date = date.strftime("%d-%m-%Y")
             indiz_id = self.select(f"select indiz_id from indiz where name='{indiz_name}';")[0][0]
+            result = self.select(f"select high, low, close from data where date='{date}' and indiz_id='{indiz_id}';")
 
-            with open("tmp.jsonl", "a+") as file:
+            opening = values[0]
+            high = max(values)
+            low = min(values)
+            close = values[-1]
 
-                for line in file.readlines():
-                    line = json.loads(line)
-                    if date == line.get("date") and indiz_id == line.get("indiz_id"):
-                        values.extend(line.get("values"))
+            if len(result) > 0:
 
-                if len(values) < 77:
-                    write_line = json.dumps({"date": date, "indiz_id": indiz_id, "values": values}) + "\n"
-                    file.write(write_line)
+                if high < result[0][0]:
+                    high = result[0][0]
 
-                else:
-                    opening = values[0]
-                    high = max(values)
-                    low = min(values)
-                    close = values[-1]
-                    result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
-                                        tuple([date, indiz_id, opening, high, low, close]))
+                if low > result[0][1]:
+                    low = result[0][1]
 
-        except (IndexError, sqlite3.Error) as err:
+                if close != result[0][-1]:
+                    close = result[0][-1]
+
+                result = self.query(f"update data set high='{high}', low='{low}', close='{close}' where date='{date}' and indiz_id='{indiz_id}';")
+
+            else:
+                result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
+                                    tuple([date, indiz_id, opening, high, low, close]))
+
+        except (IndexError, KeyError, sqlite3.Error) as err:
             raise err
 
         else:
@@ -49,8 +58,8 @@ class BaseLoader(Datamanager):
 
 class ApiLoader(BaseLoader):
 
-    def __init__(self, database_name):
-        super().__init__(database_name)
+    def __init__(self):
+        super().__init__()
 
     def upload(self, data_source: list) -> bool:
 
@@ -92,13 +101,29 @@ class ApiLoader(BaseLoader):
             return True
 
 
-class AdvancedLoader(ApiLoader):
+class CsvLoader(BaseLoader):
 
-    def __init__(self, database_name):
-        super().__init__(database_name)
+    def __init__(self):
+        super().__init__()
+
+    def upload(self, data_source: list):
+
+        try:
+            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
+
+        except sqlite3.Error as err:
+            raise err
+
+        else:
+            return result
+
+
+class AdvancedLoader(ApiLoader, CsvLoader):
+
+    def __init__(self):
+        super().__init__()
 
     def upload(self, data_source: list) -> bool:
-        """Hier muss ich eine Exception suchen oder machen um nach super weiter leiten zu können!"""
 
         try:
             for item in data_source:

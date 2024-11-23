@@ -1,14 +1,13 @@
 import csv
 from funcs import to_float
-from pathlib import Path
-import os
+from classes import AdvancedLoader
+import sqlite3
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-database_file = os.path.join(BASE_DIR, "finance.sqlite3")
 data_file = "data/DAX Historische Daten-Daily.csv"
 indiz_id = 5
 values = []
+loader = AdvancedLoader()
 
 with open(data_file, "r") as csvfile:
     reader = csv.DictReader(csvfile, delimiter=",")
@@ -28,15 +27,22 @@ with open(data_file, "r") as csvfile:
                 "low": to_float(row[low_field]),
                 "close": to_float(row[close_field])}
 
-        except ValueError as err:
-            raise err
-        except TypeError as err:
-            raise err
-        except IndexError as err:
+        except (IndexError, TypeError, ValueError) as err:
             raise err
 
         else:
             values.append(item)
 
+try:
+    result = loader.upload(values)
 
-print(values)
+except sqlite3.Error as err:
+    raise err
+
+else:
+    print("Result from upload from csv:", result)
+
+# Als nächstes muss ich für den Dax bis letzten Freitag historische Daten runter laden in Daily.
+# pivots.py überarbeiten, ich muss für ein ganzen Monat open, high, low, close Kurse noch zusammenfassen.
+# Dann kann der Montag beginnen.
+# Am Dienstag überprüfen ob der AdvancedLoader richtig funktioniert und loading_datapi.py starten

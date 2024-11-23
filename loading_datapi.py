@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 database_file = os.path.join(BASE_DIR, "finance.sqlite3")
 url = "https://eugenkraft.com/stock"
 username = "eugen"
-passwd = "F9^q5(4lY:9}pm"
+passwd = "humax"
 loader = AdvancedLoader(database_file)
 
 res = requests.get(url, auth=HTTPBasicAuth(username, passwd))
