@@ -4,7 +4,7 @@ from classes import AdvancedLoader
 import sqlite3
 
 
-data_file = "data/DAX Historische Daten-Daily.csv"
+data_file = "data/DAX-24.10.14-22.11.2024.csv"
 indiz_id = 5
 values = []
 loader = AdvancedLoader()
@@ -42,7 +42,5 @@ except sqlite3.Error as err:
 else:
     print("Result from upload from csv:", result)
 
-# Als nächstes muss ich für den Dax bis letzten Freitag historische Daten runter laden in Daily.
-# pivots.py überarbeiten, ich muss für ein ganzen Monat open, high, low, close Kurse noch zusammenfassen.
-# Dann kann der Montag beginnen.
-# Am Dienstag überprüfen ob der AdvancedLoader richtig funktioniert und loading_datapi.py starten
+# Am Dienstag überprüfen ob der AdvancedLoader mit ApiLoader und CsvLoader richtig funktioniert und loading_datapi.py starten.
+
