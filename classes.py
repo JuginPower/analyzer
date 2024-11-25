@@ -33,7 +33,7 @@ class BaseLoader(Datamanager):
             close = values[-1]
 
             if len(result) > 0:
-
+                # Überprüfung ob Daten für den jeweiligen Tag vorhanden sind.
                 if high < result[0][0]:
                     high = result[0][0]
 
