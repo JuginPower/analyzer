@@ -4,8 +4,8 @@ from classes import AdvancedLoader
 import sqlite3
 
 
-data_file = "data/DAX-24.10.14-22.11.2024.csv"
-indiz_id = 5
+data_file = "data/DAX Historische Daten.csv"
+indiz_id = 29
 values = []
 loader = AdvancedLoader()
 
@@ -41,6 +41,4 @@ except sqlite3.Error as err:
 
 else:
     print("Result from upload from csv:", result)
-
-# Am Dienstag überprüfen ob der AdvancedLoader mit ApiLoader und CsvLoader richtig funktioniert und loading_datapi.py starten.
 

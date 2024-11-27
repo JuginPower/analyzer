@@ -40,20 +40,39 @@ class BaseLoader(Datamanager):
                 if low > result[0][1]:
                     low = result[0][1]
 
-                if close != result[0][-1]:
-                    close = result[0][-1]
-
                 result = self.query(f"update data set high='{high}', low='{low}', close='{close}' where date='{date}' and indiz_id='{indiz_id}';")
 
             else:
                 result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
                                     tuple([date, indiz_id, opening, high, low, close]))
 
-        except (IndexError, KeyError, sqlite3.Error) as err:
+        except (KeyError, sqlite3.Error) as err:
             raise err
+
+        except IndexError as err:
+            print(err)
+            print(f"Something goes wrong with upload data from {indiz_name}!")
+            return False
 
         else:
             return True
+
+
+class CsvLoader(BaseLoader):
+
+    def __init__(self):
+        super().__init__()
+
+    def upload(self, data_source: list):
+
+        try:
+            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
+
+        except (sqlite3.Error, TypeError) as err:
+            raise err
+
+        else:
+            return result
 
 
 class ApiLoader(BaseLoader):
@@ -101,24 +120,7 @@ class ApiLoader(BaseLoader):
             return True
 
 
-class CsvLoader(BaseLoader):
-
-    def __init__(self):
-        super().__init__()
-
-    def upload(self, data_source: list):
-
-        try:
-            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
-
-        except sqlite3.Error as err:
-            raise err
-
-        else:
-            return result
-
-
-class AdvancedLoader(ApiLoader, CsvLoader):
+class AdvancedLoader(ApiLoader):
 
     def __init__(self):
         super().__init__()
