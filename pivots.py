@@ -119,12 +119,12 @@ fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R1"], mode="lines
 fig.update_layout(title="DAX Kurs", xaxis_title="Datum", yaxis_title='Preis', template='plotly')
 
 fig.show()
-# Am 27.11.2024 um 23:50 Uhr delete Anfrage an datapi schicken
+# Am 27.11.2024 um 23:50 Uhr delete Anfrage an datapi schicken.
 # Historische Daten für den 27.11.2024 für den Dax uploaden.
-# Titel und Wharscheinlichkeit der Kreuzungen hinzufügen.
+# Titel und Wahrscheinlichkeit der Kreuzungen hinzufügen.
 # Alle pivot Linien hinzufügen.
 # Am 29.11.2024 im Laufe des Tages loading_datapi starten.
 # Die Richtigkeit der erfassten Kurse mit den Daten für DAX aus TWS vergleichen.
+# In GitHub (privat) vor 03.12.2024 einpflegen und Master Branch auf Laptop herunterladen.
 # Am 03.12.2024 im Laufe des Tages loading_datapi starten.
 # Die Richtigkeit der erfassten Kurse mit den Daten für DAX aus TWS vergleichen.
-# In GitHub (privat) einpflegen und Master Branch auf Laptop herunterladen.

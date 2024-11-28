@@ -1,7 +1,6 @@
 import requests
 from requests.auth import HTTPBasicAuth
 from classes import AdvancedLoader
-from time import sleep
 
 
 url = "https://eugenkraft.com/stock"
@@ -10,7 +9,6 @@ passwd = "humax"
 loader = AdvancedLoader()
 
 res = requests.get(url, auth=HTTPBasicAuth(username, passwd))
-sleep(1)
 
 if 299 >= res.status_code >= 200:
     data_source = res.json()
