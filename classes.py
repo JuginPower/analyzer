@@ -118,27 +118,3 @@ class ApiLoader(BaseLoader):
                     numbers = []
 
             return True
-
-
-class AdvancedLoader(ApiLoader):
-
-    def __init__(self):
-        super().__init__()
-
-    def upload(self, data_source: list) -> bool:
-
-        try:
-            for item in data_source:
-                date: str = datetime.strptime(item["date"], "%d.%m.%Y").strftime("%d-%m-%Y")
-                indiz_id = item["indiz_id"]
-                open = item["open"]
-                high = item["high"]
-                low = item["low"]
-                close = item["close"]
-                result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
-                                    tuple([date, indiz_id, open, high, low, close]))
-
-        except KeyError:
-            super().upload(data_source)
-
-        return True

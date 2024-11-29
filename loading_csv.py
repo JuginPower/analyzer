@@ -1,13 +1,13 @@
 import csv
 from funcs import to_float
-from classes import AdvancedLoader
+from classes import CsvLoader
 import sqlite3
 
 
-data_file = "data/DAX Historische Daten.csv"
-indiz_id = 29
+data_file = "data/BASF11 Historische Daten.csv"
+indiz_id = 26
 values = []
-loader = AdvancedLoader()
+loader = CsvLoader()
 
 with open(data_file, "r") as csvfile:
     reader = csv.DictReader(csvfile, delimiter=",")
@@ -19,7 +19,7 @@ with open(data_file, "r") as csvfile:
             low_field = reader.fieldnames[4]
             close_field = reader.fieldnames[1]
 
-            item = {
+            item = { # Es soll ein tuple sein kein dictionary mit Namen da AdvancedLoader gelöscht
                 "date": row[date_field],
                 "indiz_id": indiz_id,
                 "open": to_float(row[open_field]),

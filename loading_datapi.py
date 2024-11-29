@@ -1,12 +1,12 @@
 import requests
 from requests.auth import HTTPBasicAuth
-from classes import AdvancedLoader
+from classes import ApiLoader
 
 
 url = "https://eugenkraft.com/stock"
 username = "eugen"
 passwd = "humax"
-loader = AdvancedLoader()
+loader = ApiLoader()
 
 res = requests.get(url, auth=HTTPBasicAuth(username, passwd))
 
