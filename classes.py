@@ -63,7 +63,7 @@ class CsvLoader(BaseLoader):
     def __init__(self):
         super().__init__()
 
-    def upload(self, data_source: list):
+    def upload(self, data_source: list) -> int:
 
         try:
             result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)

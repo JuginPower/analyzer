@@ -19,13 +19,14 @@ with open(data_file, "r") as csvfile:
             low_field = reader.fieldnames[4]
             close_field = reader.fieldnames[1]
 
-            item = { # Es soll ein tuple sein kein dictionary mit Namen da AdvancedLoader gelöscht
-                "date": row[date_field],
-                "indiz_id": indiz_id,
-                "open": to_float(row[open_field]),
-                "high": to_float(row[high_field]),
-                "low": to_float(row[low_field]),
-                "close": to_float(row[close_field])}
+            item = (
+                row[date_field],
+                indiz_id,
+                to_float(row[open_field]),
+                to_float(row[high_field]),
+                to_float(row[low_field]),
+                to_float(row[close_field])
+            )
 
         except (IndexError, TypeError, ValueError) as err:
             raise err
@@ -40,5 +41,5 @@ except sqlite3.Error as err:
     raise err
 
 else:
-    print("Result from upload from csv:", result)
+    print("Rows inserted from upload csv data:", result)
 

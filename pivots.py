@@ -3,7 +3,13 @@ from classes import ApiLoader
 import plotly.graph_objects as go
 
 
+loader = ApiLoader()
+indiz_id = 26
+title = loader.select(f"select name from indiz where indiz_id='{indiz_id}';")[0][0]
+
 def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
+
+    """Errechnet für jeden Monat die Höchs-, Tiefst- und Schlusskurse"""
 
     # Gruppen werden erstellt
     grouped = df.groupby(date_column)
@@ -31,6 +37,8 @@ def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
 
 def make_pivots(df: pd.DataFrame) -> pd.DataFrame:
 
+    """Errechnet die Pivots von der letzten Zeitreihe für die aktuelle Zeitreihe"""
+
     df_copy = df.copy(deep=True)
     df_copy["pivot"] = round((df_copy["high"].shift(1) + df_copy["low"].shift(1) + df_copy["close"].shift(1)) / 3, 2)
     df_copy["R1"] = round(2 * df_copy["pivot"] - df_copy["low"].shift(1), 2)
@@ -53,6 +61,8 @@ def make_pivots(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> dict:
+
+    """Errechnet die Wahrscheinlichkeit der Kreuzung der Pivot-Linien anhand historischer Daten"""
 
     crosses = []
     probabilities = {}
@@ -80,11 +90,25 @@ def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> di
     return probabilities
 
 
-loader = ApiLoader()
-indiz_id = 29
+def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: pd.DataFrame, pivots_dataframe: pd.DataFrame, starting_column=5):
+
+    """Nimmt ein Dataframe vom aktuellen vollständigen Monat und merged diesen mit den letzten pivots für diesen Monat."""
+     
+    df_merged = pd.merge(extended_dates_dataframe, last_month_dataframe, how="left", on="date").copy(deep=True)
+    pivot_columns = [c for c in pivots_dataframe.columns]
+
+    for column in pivot_columns[starting_column:]:
+
+        df_merged[column] = [pivots_dataframe.iloc[-1, pivot_columns.index(column)] for x in range(len(df_merged))]
+
+    df_merged["Strike"] = df_merged["pivot"] + ((df_merged["P-MID-R1"] - df_merged["pivot"]) / 3 * 2)
+
+    return df_merged
+
+
 # Auswählen des Indizes und Grupierung nach Monaten
 df = pd.read_sql(f"select * from data where indiz_id='{indiz_id}';", con=loader.init_conn())
-df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
+df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y") # Ich habe verschiedene Datumsformate in der Datenbank
 df = df.sort_values("date").reset_index(drop=True)
 df['year_month'] = df['date'].dt.to_period('M')
 
@@ -104,45 +128,31 @@ extended_dates = pd.DataFrame({"date": pd.date_range(start=start_date, end=end_d
 df_last_month = df[df["date"] >= start_date].loc[:, "date": "close"]
 df_last_month.reset_index(drop=True, inplace=True) # Funktioniert iwie nicht
 
-# Weiter arbeiten mit dem extended Dataframe
-df_extended = pd.merge(extended_dates, df_last_month, how="left", on="date")
-df_extended["pivot"] = [df_pivots.iloc[-1, 5] for x in range(len(df_extended))]
-df_extended["R1"] = [df_pivots.iloc[-1, 6] for x in range(len(df_extended))]
-df_extended["R2"] = [df_pivots.iloc[-1, 7] for x in range(len(df_extended))]
-df_extended["R3"] = [df_pivots.iloc[-1, 8] for x in range(len(df_extended))]
-df_extended["S1"] = [df_pivots.iloc[-1, 9] for x in range(len(df_extended))]
-df_extended["S2"] = [df_pivots.iloc[-1, 10] for x in range(len(df_extended))]
-df_extended["S3"] = [df_pivots.iloc[-1, 11] for x in range(len(df_extended))]
-df_extended["P-MID-R1"] = [df_pivots.iloc[-1, 12] for x in range(len(df_extended))]
-df_extended["Strike"] = df_extended["pivot"] + ((df_extended["P-MID-R1"] - df_extended["pivot"]) / 3 * 2)
-df_extended["R1-MID-R2"] = [df_pivots.iloc[-1, 13] for x in range(len(df_extended))]
-df_extended["R2-MID-R3"] = [df_pivots.iloc[-1, 14] for x in range(len(df_extended))]
-df_extended["P-MID-S1"] = [df_pivots.iloc[-1, 15] for x in range(len(df_extended))]
-df_extended["S1-MID-S2"] = [df_pivots.iloc[-1, 16] for x in range(len(df_extended))]
-df_extended["S2-MID-S3"] = [df_pivots.iloc[-1, 17] for x in range(len(df_extended))]
-
+# Hier kommt das Merging des aktuellen vollständigen Monats mit den letzten Pivotlinien
+df_merged = merge_pivots(extended_dates, df_last_month, df_pivots)
 
 # Nutzung des Frameworks plotly für den Candle-Stick Chart
-fig = go.Figure(data=[go.Candlestick(x=df_extended["date"], open=df_extended["open"], high=df_extended["high"], low=df_extended["low"], close=df_extended["close"])])
+fig = go.Figure(data=[go.Candlestick(x=df_merged["date"], open=df_merged["open"], high=df_merged["high"], low=df_merged["low"], close=df_merged["close"])])
 
 # Hinzufügen der durchgezogenen Linien
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["pivot"], mode="lines", name="Pivot", line=dict(color="#000000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["Strike"], mode="lines", name="Strike", line=dict(dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R1"], mode="lines", name=f"R1: {probabilities.get('R1')}%", line=dict(color="#00FFFF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R2"], mode="lines", name=f"R2: {probabilities.get('R2')}%", line=dict(color="#FFFF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R3"], mode="lines", name=f"R3: {probabilities.get('R3')}%", line=dict(color="#FF0000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["S1"], mode="lines", name=f"S1: {probabilities.get('S1')}%", line=dict(color="#00FFFF",dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["S2"], mode="lines", name=f"S2: {probabilities.get('S2')}%", line=dict(color="#FFFF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["S3"], mode="lines", name=f"S3: {probabilities.get('S3')}%", line=dict(color="#FF0000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["P-MID-R1"], mode="lines", name=f"P-MID-R1: {probabilities.get('P-MID-R1')}%", line=dict(color="#0000FF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R1-MID-R2"], mode="lines", name=f"R1-MID-R2: {probabilities.get('R1-MID-R2')}%", line=dict(color="#00FF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["R2-MID-R3"], mode="lines", name=f"R2-MID-R3: {probabilities.get('R2-MID-R3')}%", line=dict(color="#FFA500", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["P-MID-S1"], mode="lines", name=f"P-MID-S1: {probabilities.get('P-MID-S1')}%", line=dict(color="#0000FF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["S1-MID-S2"], mode="lines", name=f"S1-MID-S2: {probabilities.get('S1-MID-S2')}%", line=dict(color="#00FF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_extended["date"], y=df_extended["S2-MID-S3"], mode="lines", name=f"S2-MID-S3: {probabilities.get('S2-MID-S3')}%", line=dict(color="#FFA500", dash="solid")))
-fig.update_layout(title="DAX Kurs", xaxis_title="Datum", yaxis_title='Preis', template='plotly')
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["pivot"], mode="lines", name="Pivot", line=dict(color="#000000", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["Strike"], mode="lines", name="Strike", line=dict(dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R1"], mode="lines", name=f"R1: {probabilities.get('R1')}%", line=dict(color="#00FFFF", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R2"], mode="lines", name=f"R2: {probabilities.get('R2')}%", line=dict(color="#FFFF00", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R3"], mode="lines", name=f"R3: {probabilities.get('R3')}%", line=dict(color="#FF0000", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S1"], mode="lines", name=f"S1: {probabilities.get('S1')}%", line=dict(color="#00FFFF",dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S2"], mode="lines", name=f"S2: {probabilities.get('S2')}%", line=dict(color="#FFFF00", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S3"], mode="lines", name=f"S3: {probabilities.get('S3')}%", line=dict(color="#FF0000", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["P-MID-R1"], mode="lines", name=f"P-MID-R1: {probabilities.get('P-MID-R1')}%", line=dict(color="#0000FF", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R1-MID-R2"], mode="lines", name=f"R1-MID-R2: {probabilities.get('R1-MID-R2')}%", line=dict(color="#00FF00", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R2-MID-R3"], mode="lines", name=f"R2-MID-R3: {probabilities.get('R2-MID-R3')}%", line=dict(color="#FFA500", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["P-MID-S1"], mode="lines", name=f"P-MID-S1: {probabilities.get('P-MID-S1')}%", line=dict(color="#0000FF", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S1-MID-S2"], mode="lines", name=f"S1-MID-S2: {probabilities.get('S1-MID-S2')}%", line=dict(color="#00FF00", dash="solid")))
+fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S2-MID-S3"], mode="lines", name=f"S2-MID-S3: {probabilities.get('S2-MID-S3')}%", line=dict(color="#FFA500", dash="solid")))
+fig.update_layout(title=title, xaxis_title="Datum", yaxis_title='Preis', template='plotly')
 
 fig.show()
 # Nach dem 29.11.2024 nochmal datapi starten und erneut Daten vom Dax vom 29.11.2024 überprüfen.
 # Loading CSV überarbeiten da Advanced Loader gelöscht wurde.
-# pivots.py refactoren
+# Auswahl von Indizien hinzufügen. Dabei um die verschiedenen Datumsformate in der Datenbank kümmern
+# Optional, fig überarbeiten.
