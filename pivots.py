@@ -1,10 +1,10 @@
 import pandas as pd
-from classes import ApiLoader
+from classes import BaseLoader
 import plotly.graph_objects as go
 
 
-loader = ApiLoader()
-indiz_id = 26
+loader = BaseLoader()
+indiz_id = 33
 title = loader.select(f"select name from indiz where indiz_id='{indiz_id}';")[0][0]
 
 def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
@@ -90,7 +90,7 @@ def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> di
     return probabilities
 
 
-def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: pd.DataFrame, pivots_dataframe: pd.DataFrame, starting_column=5):
+def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: pd.DataFrame, pivots_dataframe: pd.DataFrame, fav_pivot="P-MID-R1", starting_column=5):
 
     """Nimmt ein Dataframe vom aktuellen vollständigen Monat und merged diesen mit den letzten pivots für diesen Monat."""
      
@@ -101,7 +101,7 @@ def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: p
 
         df_merged[column] = [pivots_dataframe.iloc[-1, pivot_columns.index(column)] for x in range(len(df_merged))]
 
-    df_merged["Strike"] = df_merged["pivot"] + ((df_merged["P-MID-R1"] - df_merged["pivot"]) / 3 * 2)
+    df_merged["Strike"] = df_merged["pivot"] + ((df_merged[fav_pivot] - df_merged["pivot"]) / 3 * 2)
 
     return df_merged
 
@@ -152,7 +152,5 @@ fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S2-MID-S3"], mode="li
 fig.update_layout(title=title, xaxis_title="Datum", yaxis_title='Preis', template='plotly')
 
 fig.show()
-# Nach dem 29.11.2024 nochmal datapi starten und erneut Daten vom Dax vom 29.11.2024 überprüfen.
-# Loading CSV überarbeiten da Advanced Loader gelöscht wurde.
-# Auswahl von Indizien hinzufügen. Dabei um die verschiedenen Datumsformate in der Datenbank kümmern
+# Den Strike Preis dynamisch programmieren, sodass er sich an der größten Wahrscheinlichkeit orientiert.
 # Optional, fig überarbeiten.

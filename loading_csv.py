@@ -4,8 +4,8 @@ from classes import CsvLoader
 import sqlite3
 
 
-data_file = "data/BASF11 Historische Daten.csv"
-indiz_id = 26
+data_file = "data/S&P 500 Historische Daten.csv"
+indiz_id = 33
 values = []
 loader = CsvLoader()
 
@@ -20,7 +20,7 @@ with open(data_file, "r") as csvfile:
             close_field = reader.fieldnames[1]
 
             item = (
-                row[date_field],
+                row[date_field].replace(".", "-"),
                 indiz_id,
                 to_float(row[open_field]),
                 to_float(row[high_field]),
