@@ -20,7 +20,7 @@ class BaseLoader(Datamanager):
             return False
         return True
 
-    def upload(self, indiz_name: str, date: datetime, values: list) -> bool:
+    def upload(self, indiz_name: str, date: datetime, values: list):
 
         try:
             date = date.strftime("%d-%m-%Y")
@@ -50,25 +50,7 @@ class BaseLoader(Datamanager):
             raise err
 
         except IndexError as err:
-            print(err)
-            print(f"Something goes wrong with upload data from {indiz_name}!")
-            return False
-
-        else:
-            return True
-
-
-class CsvLoader(BaseLoader):
-
-    def __init__(self):
-        super().__init__()
-
-    def upload(self, data_source: list) -> int:
-
-        try:
-            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
-
-        except (sqlite3.Error, TypeError) as err:
+            print(f"Empty list of data for {indiz_name}!")
             raise err
 
         else:
@@ -80,7 +62,7 @@ class ApiLoader(BaseLoader):
     def __init__(self):
         super().__init__()
 
-    def upload(self, data_source: list) -> bool:
+    def upload(self, data_source: list):
 
         try:
             data_source.sort(key=lambda k: k["indiz"])
@@ -94,27 +76,51 @@ class ApiLoader(BaseLoader):
             old_date = None
             numbers = []
 
-            for item in data_source:
+            try:
+                for item in data_source:
 
-                actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
-                actual_indiz = item.get("indiz")
+                    actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
+                    actual_indiz = item.get("indiz")
 
-                if not self.check_presence(tablename="indiz", column="name", filtername=actual_indiz):
-                    result = self.query(f"insert into indiz (name) values ('{actual_indiz}');")
+                    if not self.check_presence(tablename="indiz", column="name", filtername=actual_indiz):
+                        result = self.query(f"insert into indiz (name) values ('{actual_indiz}');")
 
-                if not old_indiz:
-                    old_indiz = actual_indiz
+                    if not old_indiz:
+                        old_indiz = actual_indiz
 
-                if not old_date:
-                    old_date = actual_date_obj
+                    if not old_date:
+                        old_date = actual_date_obj
 
-                if old_date.day == actual_date_obj.day and isinstance(old_indiz, str) and old_indiz == item.get("indiz"):
-                    numbers.append(item.get("data"))
+                    if old_date.day == actual_date_obj.day and old_indiz == item.get("indiz"):
+                        numbers.append(item.get("data"))
 
-                else:
-                    result = super().upload(old_indiz, old_date, numbers)
-                    old_indiz = item.get("indiz")
-                    old_date = actual_date_obj
-                    numbers = []
+                    elif not (old_date.day == actual_date_obj.day and old_indiz == item.get("indiz")):
 
-            return True
+                        result = super().upload(old_indiz, old_date, numbers)
+                        old_indiz = item.get("indiz")
+                        old_date = actual_date_obj
+                        numbers = []
+
+                result = super().upload(old_indiz, old_date, numbers)
+
+            except (KeyError, sqlite3.Error, IndexError) as err:
+                raise err
+
+            return result
+
+
+class CsvLoader(BaseLoader):
+
+    def __init__(self):
+        super().__init__()
+
+    def upload(self, data_source: list):
+
+        try:
+            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
+
+        except (sqlite3.Error, TypeError) as err:
+            raise err
+
+        else:
+            return result
