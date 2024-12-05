@@ -4,8 +4,8 @@ from classes import CsvLoader
 import sqlite3
 
 
-data_file = "data/S&P 500 Historische Daten.csv"
-indiz_id = 33
+data_file = "data/850605 Historische Daten.csv"
+indiz_id = 34
 values = []
 loader = CsvLoader()
 

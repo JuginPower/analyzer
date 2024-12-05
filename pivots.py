@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 loader = BaseLoader()
 indiz_id = 33
 title = loader.select(f"select name from indiz where indiz_id='{indiz_id}';")[0][0]
+ma_pivot = "R1"
 
 def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
 
@@ -90,7 +91,7 @@ def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> di
     return probabilities
 
 
-def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: pd.DataFrame, pivots_dataframe: pd.DataFrame, fav_pivot="R1", starting_column=5):
+def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: pd.DataFrame, pivots_dataframe: pd.DataFrame, fav_pivot=ma_pivot, starting_column=5):
 
     """Nimmt ein Dataframe vom aktuellen vollständigen Monat und merged diesen mit den letzten pivots für diesen Monat."""
      

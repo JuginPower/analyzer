@@ -15,7 +15,7 @@ class BaseLoader(Datamanager):
         super().__init__(database_file)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
-        result = self.select(f"select {column} from {tablename} where {column}='{filtername}';")
+        result = self.select(f"select {column} from {tablename} where {column}='{filtername}';") # Mit like verbessern
         if len(result) == 0:
             return False
         return True
