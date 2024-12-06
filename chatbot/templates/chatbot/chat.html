@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chatbot</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Chatbot</h1>
+
+    <div>
+        <form id="chat-form">
+            <label for="userInput">Ihre Frage:</label>
+            <input type="text" id="userInput" name="query">
+            <button type="submit">Senden</button>
+        </form>
+    </div>
+
+    <div id="botResponse" style="margin-top:20px;">
+        Bitte geben Sie eine Frage ein.
+    </div>
+
+    <script type="text/javascript">
+      $(document).ready(function() {
+          $('#chat-form').submit(function(e) {
+              e.preventDefault();
+              let userInput = $('#userInput').val();
+              let url = "{% url 'chatbot_response' %}";  // Dynamisch generierte URL
+              $.ajax({
+                  url: url,
+                  type: "GET",
+                  data: { 'query': userInput },
+                  success: function(data) {
+                      $('#botResponse').html('Antwort: ' + data.response);
+                  },
+                  error: function() {
+                      $('#botResponse').html('Fehler beim Laden der Antwort');
+                  }
+              });
+          });
+      });
+    </script>
+
+</body>
+</html>
