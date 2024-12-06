@@ -5,4 +5,4 @@ myenv/
 __pycache__/
 .idea/
 *.png
-*.sqlite
+*.sqlite3
