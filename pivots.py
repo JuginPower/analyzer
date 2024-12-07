@@ -7,6 +7,7 @@ loader = BaseLoader()
 indiz_id = 33
 title = loader.select(f"select name from indiz where indiz_id='{indiz_id}';")[0][0]
 ma_pivot = "R1"
+year = 2020
 
 def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
 
@@ -61,12 +62,13 @@ def make_pivots(df: pd.DataFrame) -> pd.DataFrame:
     return df_copy
 
 
-def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> dict:
+def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int, year: int) -> dict:
 
     """Errechnet die Wahrscheinlichkeit der Kreuzung der Pivot-Linien anhand historischer Daten"""
 
     crosses = []
     probabilities = {}
+    len_counter = 0
 
     for index, row in df.iterrows():
         try:
@@ -76,16 +78,22 @@ def get_crossing_probability(df: pd.DataFrame, starting_pivot_column: int) -> di
         else:
             for column in df.columns[starting_pivot_column:]:
 
-                if column[0] == "R" or column == "P-MID-R1":
-                    if row["high"] > previous_row[column]:
-                        crosses.append({"pivotname": column, "row": row})
+                if int(row.loc["year_month"].split("-")[0]) >= year:
 
-                elif column[0] == "S" or column == "P-MID-S1":
-                    if row["low"] < previous_row[column]:
-                        crosses.append({"pivotname": column, "row": row})
+                    if len_counter == 0:
+                        len_counter = int(index)
+
+                    if column[0] == "R" or column == "P-MID-R1":
+                        if row["high"] > previous_row[column]:
+                            crosses.append({"pivotname": column, "row": row})
+
+                    elif column[0] == "S" or column == "P-MID-S1":
+                        if row["low"] < previous_row[column]:
+                            crosses.append({"pivotname": column, "row": row})
+
 
     for column in df.columns[starting_pivot_column:]:
-        probability = round(([d.get("pivotname") for d in crosses].count(column) / len(df)) * 100, 3)
+        probability = round(([d.get("pivotname") for d in crosses].count(column) / len(df.iloc[len_counter:])) * 100, 3)
         probabilities.update({column:probability})
 
     return probabilities
@@ -119,7 +127,7 @@ df['year_month'] = df['date'].dt.to_period('M')
 # Aussortierung nach Monaten und deren Höchst-, Tiefst- und Schlusswerte
 df_sifted = sift_out(df)
 df_pivots = make_pivots(df_sifted)
-probabilities = get_crossing_probability(df_pivots, 5)
+probabilities = get_crossing_probability(df_pivots, 5, year)
 
 # Erstellung eines date range im letzten Monat bis zum letzten Tag der Aufzeichnung
 start_date = pd.to_datetime(df_pivots.iloc[-1,0] + "-01")
