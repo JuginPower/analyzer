@@ -59,7 +59,8 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),
-            os.path.join(BASE_DIR, 'chatbot/templates')
+            os.path.join(BASE_DIR, 'chatbot/templates'),
+            os.path.join(BASE_DIR, 'stocks/templates')
                  ],
         'APP_DIRS': True,
         'OPTIONS': {

@@ -3,10 +3,8 @@ from django.http import JsonResponse
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from threading import Lock
 
-
-# Neues Modell: CodeGen-2B
-model_name = "EleutherAI/gpt-neo-1.3B"
-
+# Neues Modell: Llama-3.2-1B
+model_name = "meta-llama/Llama-3.2-1B"
 
 class ModelSingleton:
     """
@@ -19,12 +17,13 @@ class ModelSingleton:
     @classmethod
     def get_model(cls):
         # Sicherstellen, dass das Modell nur einmal geladen wird
-        with cls._lock:  # Sperren, um Threading-Probleme zu vermeiden
+        with cls._lock:
             if cls._model is None:
                 cls._tokenizer = AutoTokenizer.from_pretrained(model_name)
                 cls._model = AutoModelForCausalLM.from_pretrained(
                     model_name,
-                    device_map="cpu"
+                    torch_dtype="bfloat16",  # Für Speicheroptimierung
+                    device_map="auto"  # Automatische Gerätezuweisung (CPU/GPU)
                 )
         return cls._model, cls._tokenizer
 
