@@ -1,41 +1,13 @@
 import pandas as pd
 from classes import BaseLoader
-import plotly.graph_objects as go
+from funcs import prepare_dataframe, show_graph_objects
 
 
 loader = BaseLoader()
 indiz_id = 33
 title = loader.select(f"select name from indiz where indiz_id='{indiz_id}';")[0][0]
 ma_pivot = "R1"
-year = 2020
-
-def sift_out(df: pd.DataFrame, date_column: str = "year_month"):
-
-    """Errechnet für jeden Monat die Höchs-, Tiefst- und Schlusskurse"""
-
-    # Gruppen werden erstellt
-    grouped = df.groupby(date_column)
-    results = []
-
-    for name, group in grouped:
-        # Für jede Gruppe wird eine Zeile erstellt mit den Höchst-, Tiefst- und Schlusswerten.
-        highest_high = group['high'].max()
-        lowest_low = group['low'].min()
-        open_price = group.iloc[0]['open']
-        close_price = group.iloc[-1]['close']
-
-        # Ergebnisse hinzufügen.
-        results.append({
-            date_column: str(name),
-            'high': highest_high,
-            'low': lowest_low,
-            'open': open_price,
-            'close': close_price
-        })
-    # Ergebnisse in ein DataFrame umwandeln.
-    summary_df = pd.DataFrame(results)
-    return summary_df
-
+year = 2014
 
 def make_pivots(df: pd.DataFrame) -> pd.DataFrame:
 
@@ -118,15 +90,9 @@ def merge_pivots(extended_dates_dataframe: pd.DataFrame, last_month_dataframe: p
     return df_merged
 
 
-# Auswählen des Indizes und Grupierung nach Monaten
-df = pd.read_sql(f"select * from data where indiz_id='{indiz_id}';", con=loader.init_conn())
-df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y") # Ich habe verschiedene Datumsformate in der Datenbank
-df = df.sort_values("date").reset_index(drop=True)
-df['year_month'] = df['date'].dt.to_period('M')
-
-# Aussortierung nach Monaten und deren Höchst-, Tiefst- und Schlusswerte
-df_sifted = sift_out(df)
-df_pivots = make_pivots(df_sifted)
+df_orig = prepare_dataframe(indiz_id)
+df_prepared = prepare_dataframe(indiz_id, 'year_month', 'sift_out')
+df_pivots = make_pivots(df_prepared)
 probabilities = get_crossing_probability(df_pivots, 5, year)
 
 # Erstellung eines date range im letzten Monat bis zum letzten Tag der Aufzeichnung
@@ -137,31 +103,11 @@ end_date = start_date + pd.offsets.MonthEnd(0)
 extended_dates = pd.DataFrame({"date": pd.date_range(start=start_date, end=end_date, freq='B')})
 
 # Zusammenfassen der Daten des letzten und noch laufenden Monats
-df_last_month = df[df["date"] >= start_date].loc[:, "date": "close"]
+df_last_month = df_orig[df_orig["date"] >= start_date].loc[:, "date": "close"]
 df_last_month.reset_index(drop=True, inplace=True) # Funktioniert iwie nicht
 
 # Hier kommt das Merging des aktuellen vollständigen Monats mit den letzten Pivotlinien
 df_merged = merge_pivots(extended_dates, df_last_month, df_pivots)
 
 # Nutzung des Frameworks plotly für den Candle-Stick Chart
-fig = go.Figure(data=[go.Candlestick(x=df_merged["date"], open=df_merged["open"], high=df_merged["high"], low=df_merged["low"], close=df_merged["close"])])
-
-# Hinzufügen der durchgezogenen Linien
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["pivot"], mode="lines", name="Pivot", line=dict(color="#000000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["Strike"], mode="lines", name="Strike", line=dict(dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R1"], mode="lines", name=f"R1: {probabilities.get('R1')}%", line=dict(color="#00FFFF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R2"], mode="lines", name=f"R2: {probabilities.get('R2')}%", line=dict(color="#FFFF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R3"], mode="lines", name=f"R3: {probabilities.get('R3')}%", line=dict(color="#FF0000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S1"], mode="lines", name=f"S1: {probabilities.get('S1')}%", line=dict(color="#00FFFF",dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S2"], mode="lines", name=f"S2: {probabilities.get('S2')}%", line=dict(color="#FFFF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S3"], mode="lines", name=f"S3: {probabilities.get('S3')}%", line=dict(color="#FF0000", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["P-MID-R1"], mode="lines", name=f"P-MID-R1: {probabilities.get('P-MID-R1')}%", line=dict(color="#0000FF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R1-MID-R2"], mode="lines", name=f"R1-MID-R2: {probabilities.get('R1-MID-R2')}%", line=dict(color="#00FF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["R2-MID-R3"], mode="lines", name=f"R2-MID-R3: {probabilities.get('R2-MID-R3')}%", line=dict(color="#FFA500", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["P-MID-S1"], mode="lines", name=f"P-MID-S1: {probabilities.get('P-MID-S1')}%", line=dict(color="#0000FF", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S1-MID-S2"], mode="lines", name=f"S1-MID-S2: {probabilities.get('S1-MID-S2')}%", line=dict(color="#00FF00", dash="solid")))
-fig.add_trace(go.Scatter(x=df_merged["date"], y=df_merged["S2-MID-S3"], mode="lines", name=f"S2-MID-S3: {probabilities.get('S2-MID-S3')}%", line=dict(color="#FFA500", dash="solid")))
-fig.update_layout(title=title, xaxis_title="Datum", yaxis_title='Preis', template='plotly')
-
-fig.show()
-# Optional, fig überarbeiten.
+show_graph_objects(df_merged, title, probabilities)
