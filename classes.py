@@ -4,11 +4,12 @@ import sqlite3
 from pathlib import Path
 import os
 import pandas as pd
+import settings
 
 
 class BaseLoader(SqliteDatamanager):
 
-    def __init__(self, filename = "finance.sqlite3"):
+    def __init__(self, filename = settings.sqlite_db_name):
 
         base_dir = Path(__file__).resolve().parent.parent
         database_file = os.path.join(base_dir, filename)

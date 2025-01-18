@@ -2,14 +2,11 @@ import requests
 from requests.auth import HTTPBasicAuth
 from classes import ApiLoader
 import sqlite3
+from settings import datapi_url, datapi_username, datapi_passwd
 
 
-url = "https://eugenkraft.com/stock"
-username = "eugen"
-passwd = "humax"
 loader = ApiLoader()
-
-res = requests.get(url, auth=HTTPBasicAuth(username, passwd))
+res = requests.get(datapi_url, auth=HTTPBasicAuth(datapi_username, datapi_passwd))
 
 if 299 >= res.status_code >= 200:
     data_source = res.json()
@@ -19,7 +16,7 @@ if 299 >= res.status_code >= 200:
         raise err
     else:
         print("Result from upload from api:", result)
-        res = requests.delete(url, auth=HTTPBasicAuth(username, passwd))
+        res = requests.delete(datapi_url, auth=HTTPBasicAuth(datapi_username, datapi_passwd))
         print("Status Code from DELETE request:", res.status_code)
 
 elif not (299 >= res.status_code >= 200):

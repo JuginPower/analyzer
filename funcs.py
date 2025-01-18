@@ -1,17 +1,16 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from copy import copy
 
 
 def to_float(str_number: str, absolut=False) -> float:
 
     """
-    Formatiert einen String in eine Fließkommazahl.
+    Formats a string into a floating point number.
 
-    :param str_number: Der String der formatiert wird.
-    :param absolut: Bestimmt, ob die Fließkommazahl einen absoluten Wert darstellen soll oder nicht.
-    :return: Gibt die fertig transformierte Fließkommazahl zurück.
+    :param str_number: The string to be formatted.
+    :param absolut: Determines whether the floating point number should represent an absolute value or not.
+    :return: Returns the completely transformed floating point number.
     """
 
     result = None
@@ -40,11 +39,11 @@ def to_float(str_number: str, absolut=False) -> float:
 def get_std(sample: list, population=False) -> float:
 
     """
-    Gibt die Standardabweichung zurück.
+    Returns the standard deviation.
 
-    :param sample: Die Population oder Probe.
-    :param population: Entscheided, ob es sich um eine vollständige Größe der Population handelt oder nur eine Probe.
-    :return: Gibt die Standardabweichung bzw. Fließkommazahl zurück.
+    :param sample: The population or sample.
+    :param population: Decides whether this is a full size of the population or just a sample.
+    :return: Returns the standard deviation or floating point number.
     """
 
     divide = 0
@@ -59,12 +58,12 @@ def get_std(sample: list, population=False) -> float:
 def get_gaus_normald(x, mu, sigma) -> dict:
 
     """
-    Berechnet den Wert der Normalverteilungsfunktion für einen gegebenen x-Wert.
+    Calculates the value of the normal distribution function for a given x value.
 
-    :param x: Der Punkt, an dem die Dichte berechnet wird.
-    :param mu: Der Mittelwert der Verteilung.
-    :param sigma: Die Standardabweichung.
-    :return: Gibt die Dichte an Punkt x der Normalverteilungsfunktion als dictionary zurück.
+    :param x: The point at which the density is calculated.
+    :param mu: The mean of the distribution.
+    :param sigma: The standard deviation.
+    :return: Returns the density at point x of the normal distribution function as a dictionary.
     """
 
     numerator = 1
@@ -77,10 +76,10 @@ def get_gaus_normald(x, mu, sigma) -> dict:
 def get_iqrs(sample: list) -> dict:
 
     """
-    Berechnet die Interquartilsabstände aus einer Probe.
+    Calculates the interquartile ranges from a sample.
 
-    :param sample: Die Probe oder Population.
-    :return: Gibt ein dictionary mit den Interquartilsabständen q1, q2, q3, q4
+    :param sample: The sample or population.
+    :return: Returns a dictionary with the interquartile ranges q1, q2, q3, q4
     """
 
     sample.sort()
@@ -96,13 +95,15 @@ def get_iqrs(sample: list) -> dict:
 def remove_outliers(sample: list, quartiles: dict, factor=1.5):
 
     """
-    Berechnet die Untergrenze (unterer Whisker) und Obergrenze (oberer Whisker) einer Population oder Probe und entfernt
-    die Außreißer.
+    Calculates the lower limit (lower whisker) and upper limit (upper whisker) of a population or sample and removes
+    the outliers.
 
-    :param sample: Die Liste der Daten die bereinigt werden soll.
-    :param quartiles: Die Perzentile in einem Dictionary für die Berechnung der Ẃhisker.
-    :param factor: Der Faktor der die Größe der Grenzen bzw. Ausreißer bestimmt.
-    :return: Gibt ein von Außreißern bereinigte Liste der Population zurück
+    :param sample: The list of data to be cleaned.
+    :param quartiles: The percentiles in a dictionary for calculating the quartiles.
+
+    :param factor: The factor that determines the size of the limits or outliers.
+
+    :return: Returns a list of the population cleaned of outliers
     """
 
     q1 = quartiles.get("quartile2")[0]
@@ -117,12 +118,13 @@ def remove_outliers(sample: list, quartiles: dict, factor=1.5):
 def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
 
     """
+    This function uses plotly to start an interactive chart in the browser.
 
-    :param dataframe: Das zu zeichnende Pandas Dataframe.
-    :param title: Der Titel des Plots.
-    :param start_column: Die Spalte ab der zusätzlichen Linie gezeichnet werden sollen.
-    :param args: Zusätzliche Argumente wie die Wahrscheinlichkeitsanzeigen.
-    :return: Gibt nichts zurück. Erstellt eine Webapp, die einen interaktiven Chart zeigt.
+    :param dataframe: The Pandas dataframe to plot.
+    :param title: The title of the plot.
+    :param start_column: The column to start plotting the additional line.
+    :param args: Additional arguments such as the probability indicators.
+    :return: Returns nothing. Creates a webapp that shows an interactive chart.
     """
 
     pivot_columns = [c for c in dataframe.columns]
@@ -144,8 +146,9 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
 
     fig.show()
 
-
-def crossing_propability(df: pd.DataFrame): # noch nicht fertig
+"""
+-- Not finished yet
+def crossing_propability(df: pd.DataFrame):
 
     crosses = []
     probabilities = {}
@@ -180,4 +183,4 @@ def crossing_propability(df: pd.DataFrame): # noch nicht fertig
         normalds_low = [get_gaus_normald(x, mean_low_cleaned, low_std) for x in low_spreads_cleaned]
 
         permissible_deviation_high = round(mean_high_cleaned + high_std, 3)
-        permissible_deviation_low = round(mean_low_cleaned + low_std, 3)
+        permissible_deviation_low = round(mean_low_cleaned + low_std, 3)"""

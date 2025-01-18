@@ -6,3 +6,5 @@ __pycache__/
 .idea/
 *.png
 *.sqlite3
+settings.py
+*ipynb*

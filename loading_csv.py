@@ -2,9 +2,9 @@ import csv
 from funcs import to_float
 from classes import CsvLoader
 import sqlite3
+from settings import data_file
 
 
-data_file = "data/A0Z2ZZ Historische Daten.csv"
 indiz_id = 36
 values = []
 loader = CsvLoader()
