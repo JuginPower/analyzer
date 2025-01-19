@@ -4,7 +4,7 @@ import pandas as pd
 from copy import copy
 
 
-ma = MainAnalyzer(33)
+ma = MainAnalyzer(36)
 df_orig = ma.prepare_dataframe('year_month', 'sift_out')
 
 high_spreads = [h - o for h, o in zip(df_orig["high"], df_orig["open"])] # May Scatterplott
@@ -33,9 +33,7 @@ max_deviation_low = round(max_dense_low + low_std, 3)
 
 df_last_month = ma.get_last_month(df_orig)
 df_last_month["mean_high"] = round(df_orig.iloc[-1, 3] + max_dense_high, 3)
-df_last_month["strike_high"] = round(df_orig.iloc[-1, 3] + max_deviation_high / 2, 3)
 df_last_month["mean_low"] = round(df_orig.iloc[-1, 3] - max_dense_low, 3)
-df_last_month["strike_low"] = round(df_orig.iloc[-1, 3] - max_deviation_low / 2, 3)
 df_last_month["max_high"] = round(df_orig.iloc[-1, 3] + max_deviation_high, 3)
 df_last_month["max_low"] = round(df_orig.iloc[-1, 3] - max_deviation_low, 3)
 
