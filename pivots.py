@@ -3,7 +3,7 @@ from classes import PivotMaker
 from funcs import show_graph_objects
 
 
-pm = PivotMaker(36)
+pm = PivotMaker(34)
 df_pivots: pd.DataFrame = pm.prepare_dataframe('year_month', 'sift_out', 'make_pivots')
 
 df_last_month: pd.DataFrame = pm.get_last_month(df_pivots)

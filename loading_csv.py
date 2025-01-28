@@ -5,7 +5,7 @@ import sqlite3
 from settings import data_file
 
 
-indiz_id = 36
+indiz_id = 37
 values = []
 loader = CsvLoader()
 
