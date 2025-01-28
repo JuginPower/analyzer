@@ -1,10 +1,10 @@
 data/
 .vscode/
-docs/
+*.txt
+*.pdf
 myenv/
 __pycache__/
 .idea/
-*.png
 *.sqlite3
 settings.py
 *ipynb*
