@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
+from datalayer import SqliteDatamanager
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -146,41 +147,32 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
 
     fig.show()
 
-"""
--- Not finished yet
-def crossing_propability(df: pd.DataFrame):
 
-    crosses = []
-    probabilities = {}
-    len_counter = 0
+def choose_id(path_db: str, theory_name: str):
 
-    for index, row in df.iterrows():
+    dm = SqliteDatamanager(path_db)
+    indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in dm.select("select * from indiz;")]
+    indiz_ids = []
+    choosed_id = None
 
-        high_spreads = []
-        low_spreads = []
-        index = int(index)
+    print(f"Please choose the indiz_id for the indiz to analyse it with the {theory_name} theory:\n")
 
-        while index >= 0:
+    for indiz_row in indizes:
+        indiz_id = indiz_row.get('indiz_id')
+        indiz_ids.append(indiz_id)
+        print(f"id {indiz_id}: {indiz_row.get('indiz_name')}")
 
-            row = df.loc[index]
-            high_spreads.append(row["high"] - row["open"])
-            low_spreads.append(row["open"] - row["low"])
+    print()
+    while True:
+        try:
+            choosed_id = int(input("id: "))
+        except ValueError:
+            print(choosed_id, "is not an integer!")
+        else:
+            if choosed_id in indiz_ids:
+                break
+            else:
+                print(f"There is no {choosed_id} in the database, please try another!")
+                continue
 
-            index -= 1
-
-        iqrs_high_spreads = get_iqrs(high_spreads)
-        iqrs_low_spreads = get_iqrs(low_spreads)
-
-        high_spreads_cleaned = remove_outliers(copy(high_spreads), iqrs_high_spreads)
-        low_spreads_cleaned = remove_outliers(copy(low_spreads), iqrs_low_spreads)
-        mean_high_cleaned = sum(high_spreads_cleaned) / len(high_spreads_cleaned)
-        mean_low_cleaned = sum(low_spreads_cleaned) / len(low_spreads_cleaned)
-
-        high_std = get_std(high_spreads_cleaned)
-        low_std = get_std(low_spreads_cleaned)
-
-        normalds_high = [get_gaus_normald(x, mean_high_cleaned, high_std) for x in high_spreads_cleaned]
-        normalds_low = [get_gaus_normald(x, mean_low_cleaned, low_std) for x in low_spreads_cleaned]
-
-        permissible_deviation_high = round(mean_high_cleaned + high_std, 3)
-        permissible_deviation_low = round(mean_low_cleaned + low_std, 3)"""
+    return choosed_id

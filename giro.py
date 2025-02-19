@@ -82,7 +82,7 @@ if __name__ == "__main__":
         
     bilanz = {"Einnahmen": 0, "Ausgaben": 0, "Bilanz": 0}
 
-    with open('data/Kontoumsaetze_Dezember_2024.csv') as csvfile:
+    with open('data/giro/Kontoumsaetze_Februar_2025.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=';')
         
         for row in spamreader:
