@@ -148,7 +148,15 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
     fig.show()
 
 
-def choose_id(path_db: str, theory_name: str):
+def choose_id(path_db: str, theory_name: str) -> int:
+    """
+    This function should simply explain the user which id stands for which index
+
+    :param path_db: database string for the connection with the database
+    :theory_name: Kind of theory name for right naming purposes
+
+    :return: the id for further evaluation
+    """
 
     dm = SqliteDatamanager(path_db)
     indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in dm.select("select * from indiz;")]
