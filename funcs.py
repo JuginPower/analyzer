@@ -248,10 +248,7 @@ def kneighbors_process(path_database: str):
     ma = MainAnalyzer(indiz_id)
     df_monthly = ma.prepare_dataframe('year_month', 'sift_out')
 
-    # Do not need the last month
-    df_monthly.drop([len(df_monthly) - 1], inplace=True)
-
-    # Keep one last row secret
+    # Keep one last row secret for the pending month
     df_final_test = df_monthly.tail(1).copy()
     df_monthly.drop([len(df_monthly) - 1], inplace=True)
 
