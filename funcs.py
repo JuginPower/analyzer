@@ -2,6 +2,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
 from datalayer import SqliteDatamanager
+from copy import copy
+from classes import MainAnalyzer, PivotMaker
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.neighbors import KNeighborsRegressor
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -184,3 +188,151 @@ def choose_id(path_db: str, theory_name: str) -> int:
                 continue
 
     return choosed_id
+
+
+def normal_distribution_process(path_database: str):
+
+    """
+    Starts the theory process of normal distribution
+
+    :param path_database: The connection string from the database
+    """
+
+    choosed_id = choose_id(path_database, "normal distributions")
+    ma = MainAnalyzer(choosed_id)
+
+    df_orig = ma.prepare_dataframe('year_month', 'sift_out')
+    high_spreads = [h - o for h, o in zip(df_orig["high"], df_orig["open"])]  # May Scatterplott
+    low_spreads = [o - l for o, l in zip(df_orig["open"], df_orig["low"])]
+
+    iqrs_high_spreads = get_iqrs(high_spreads)
+    iqrs_low_spreads = get_iqrs(low_spreads)
+
+    high_spreads_cleaned = remove_outliers(copy(high_spreads), iqrs_high_spreads)  # May Scatterplott
+    low_spreads_cleaned = remove_outliers(copy(low_spreads), iqrs_low_spreads)
+    mean_high_cleaned = sum(high_spreads_cleaned) / len(high_spreads_cleaned)
+    mean_low_cleaned = sum(low_spreads_cleaned) / len(low_spreads_cleaned)
+
+    high_std = get_std(high_spreads_cleaned)
+    low_std = get_std(low_spreads_cleaned)
+
+    normalds_high = [get_gaus_normald(x, mean_high_cleaned, high_std) for x in high_spreads_cleaned]
+    normalds_low = [get_gaus_normald(x, mean_low_cleaned, low_std) for x in low_spreads_cleaned]
+    normalds_high.sort(key=lambda k: k["dense"])
+    normalds_low.sort(key=lambda k: k["dense"])
+    max_dense_high = normalds_high[-1]["x"]
+    max_dense_low = normalds_low[-1]["x"]
+
+    max_deviation_high = round(max_dense_high + high_std, 3)
+    max_deviation_low = round(max_dense_low + low_std, 3)
+
+    df_last_month = ma.get_last_month(df_orig)
+    df_last_month["mean_high"] = round(df_orig.iloc[-1, 3] + max_dense_high, 3)
+    df_last_month["mean_low"] = round(df_orig.iloc[-1, 3] - max_dense_low, 3)
+    df_last_month["max_high"] = round(df_orig.iloc[-1, 3] + max_deviation_high, 3)
+    df_last_month["max_low"] = round(df_orig.iloc[-1, 3] - max_deviation_low, 3)
+
+    show_graph_objects(df_last_month, ma.title)
+
+
+def kneighbors_process(path_database: str):
+
+    """
+    Starts the theory process of kneighbors regression prediction.
+
+    :param path_database: The connection string from the database
+    """
+
+    # Data preparation
+    indiz_id = choose_id(path_database, "KNeighbors Regression")
+    ma = MainAnalyzer(indiz_id)
+    df_monthly = ma.prepare_dataframe('year_month', 'sift_out')
+
+    # Do not need the last month
+    df_monthly.drop([len(df_monthly) - 1], inplace=True)
+
+    # Keep one last row secret
+    df_final_test = df_monthly.tail(1).copy()
+    df_monthly.drop([len(df_monthly) - 1], inplace=True)
+
+    # Data preparation for sklearn
+    X = df_monthly.loc[:, ["open", "high", "low"]]
+    y = df_monthly.loc[:, ["close"]]
+    X = X.to_numpy()
+    y = y.to_numpy()
+
+    # Some extra unknown data
+    X_final = df_final_test.loc[:, ["open", "high", "low"]]
+    y_final = df_final_test.loc[:, ["close"]]
+    X_final = X_final.to_numpy()
+    y_final = y_final.to_numpy()
+
+    # Splitting the data for main training and tests
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+
+    knn = KNeighborsRegressor()
+    param_grid = {"n_neighbors": range(1, 21, 1),
+                  "weights": ["uniform", "distance"],
+                  "p": [1, 2],
+                  "algorithm": ['auto']}
+
+    grid_search = GridSearchCV(knn, param_grid, cv=5, refit=True, scoring='r2', verbose=1)
+
+    # training the grid search
+    grid_search.fit(X_train, y_train)
+    train_best_score = grid_search.best_score_
+    train_best_params = grid_search.best_params_
+    print("Best training score:", train_best_score)
+    print("Best training params:", train_best_params)
+
+    # Test prediction
+    test_accuracy = grid_search.score(X_test, y_test)
+    print("Test Accuracy:", test_accuracy)
+
+    # prediction
+    final_prediction = grid_search.predict(X_final)
+    print(f"The final prediction for {df_final_test['year_month']}:\n{final_prediction}")
+    print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final}")
+
+
+def pivots_process(path_database: str):
+
+    """
+    Starts the theory process of pivots.
+
+    :param path_database: The connection string from the database
+    """
+
+    choosed_id = choose_id(path_database, "pivots")
+    pm = PivotMaker(choosed_id)
+    df_pivots: pd.DataFrame = pm.prepare_dataframe('year_month', 'sift_out', 'make_pivots')
+    df_last_month: pd.DataFrame = pm.get_last_month(df_pivots)
+    propabilities: dict = pm.get_crossing_probability(df_pivots, 2000)
+    show_graph_objects(df_last_month, pm.title, propabilities)
+
+
+def choose_theory(path_database: str):
+
+    theories = {1: "pivots", 2: "normal distribution", 3: "kneighbors regressions"}
+
+    while True:
+
+        for item in theories.items():
+            print("Press " + str(item[0]) + " for:", item[1])
+
+
+        theory_number = input("Choose the theory or q to quit: ")
+        if theory_number in ("q", "Q"):
+            break
+
+        try:
+            theory_number = int(theory_number)
+        except ValueError:
+            print("Only numbers allowed!")
+            continue
+        else:
+            match theory_number:
+                case 1: pivots_process(path_database)
+                case 2: normal_distribution_process(path_database)
+                case 3: kneighbors_process(path_database)
+                case _: continue
