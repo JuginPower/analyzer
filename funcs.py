@@ -271,9 +271,9 @@ def kneighbors_process(path_database: str):
     param_grid = {"n_neighbors": range(1, 21, 1),
                   "weights": ["uniform", "distance"],
                   "p": [1, 2],
-                  "algorithm": ['auto']}
+                  "algorithm": ["ball_tree", "kd_tree", "brute"]}
 
-    grid_search = GridSearchCV(knn, param_grid, cv=5, refit=True, scoring='r2', verbose=1)
+    grid_search = GridSearchCV(knn, param_grid, cv=5, refit=True, scoring='neg_mean_absolute_percentage_error', verbose=1)
 
     # training the grid search
     grid_search.fit(X_train, y_train)
