@@ -1,33 +1,78 @@
-from datalayer import SqliteDatamanager
 from datetime import datetime
 import sqlite3
-from pathlib import Path
-import os
 import pandas as pd
-import settings
+
+from loading_datapi import result
+from settings import mariadb_config
+import mysql.connector
+import logging
+from time import sleep
 
 
-class BaseLoader(SqliteDatamanager):
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
-    def __init__(self, filename = settings.sqlite_db_name):
+class BaseLoader:
 
-        base_dir = Path(__file__).resolve().parent.parent
-        database_file = os.path.join(base_dir, filename)
+    def __init__(self, config: dict = mariadb_config):
 
-        super().__init__(database_file)
+        self.config = config
+
+    def init_conn(self, attempts=3, delay=2):
+
+        """
+        Initialize the connection with my mariadb database.
+
+        :param attempts: amount of attempts
+        :param delay: waiting seconds for trying to reconnect
+        """
+
+        attempt = 1
+        # Implement a reconnection routine
+        while attempt < attempts + 1:
+            try:
+                return mysql.connector.connect(**self.config)
+            except (mysql.connector.Error, IOError) as err:
+                if attempts is attempt:
+                    # Attempts to reconnect failed; returning None
+                    logger.info("Failed to connect, exiting without a connection: %s", err)
+                    return None
+                logger.error(
+                    "Connection failed: %s. Retrying (%d/%d)...",
+                    err,
+                    attempt,
+                    attempts - 1,
+                )
+                # progressive reconnect delay
+                sleep(delay ** attempt)
+                attempt += 1
+        return None
 
     def check_presence(self, tablename: str, column: str, filtername: str):
-        result = self.select(f"select {column} from {tablename} where {column} like '%{filtername}%';") # Mit like verbessern
+
+        conn = self.init_conn()
+        cursor = conn.cursor()
+
+        query = f"select {column} from {tablename} where {column} like '%{filtername}%';"
+
+        cursor.execute(query)
+        result = cursor.fetchall()
+        conn.close()
+
         if len(result) == 0:
             return False
         return True
 
-    def upload(self, indiz_name: str, date: datetime, values: list):
+    def upload(self, item_name: str, date: datetime, values: list):
 
+        conn = self.init_conn()
+        cursor = conn.cursor()
         try:
             date = date.strftime("%d-%m-%Y")
-            indiz_id = self.select(f"select indiz_id from indiz where name like '%{indiz_name}%';")[0][0]
-            result = self.select(f"select high, low, close from data where date='{date}' and indiz_id='{indiz_id}';")
+            cursor.execute(f"select item_id from items where name like '%{item_name}%';")
+            item_id = cursor.fetchall()[0][0]
+            cursor.execute(f"select high, low, close from stock_price where date='{date}' and indiz_id='{indiz_id}';")
 
             opening = values[0]
             high = max(values)
@@ -48,7 +93,7 @@ class BaseLoader(SqliteDatamanager):
                 result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
                                     tuple([date, indiz_id, opening, high, low, close]))
 
-        except (KeyError, sqlite3.Error) as err:
+        except (KeyError, mysql.connector.errors, IndexError) as err:
             raise err
 
         except IndexError as err:
@@ -83,7 +128,7 @@ class ApiLoader(BaseLoader):
                 for item in data_source:
 
                     actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
-                    actual_indiz: str = item.get("indiz")
+                    actual_indiz: str = item.get("item")
 
                     if not self.check_presence(tablename="indiz", column="name", filtername=actual_indiz):
                         result = self.query(f"insert into indiz (name) values ('{actual_indiz}');")
