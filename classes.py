@@ -140,11 +140,11 @@ class MainAnalyzer(BaseLoader):
     def renew(self, indiz_id: int=None, *args) -> pd.DataFrame:
 
         """
-        Macht ein neues Dataframe auf mit ggf. neuen Argumenten.
+        Opens a new dataframe with new arguments if necessary.
 
-        :param indiz_id: Die Indiz Id für die Identifikation des Finanzinstruments.
-        :param args: Zusätzliche Argumente, die die richtige Extraktion der Daten bewirken soll.
-        :return: Gibt ein Dataframe zurück.
+        :param indiz_id: The index ID for identifying the financial instrument.
+        :param args: Additional arguments to ensure correct data extraction.
+        :return: Returns a new dataframe.
         """
 
         if indiz_id:
@@ -157,7 +157,11 @@ class MainAnalyzer(BaseLoader):
 
     def prepare_dataframe(self, *args) -> pd.DataFrame:
 
-        """Bereitet und sortiert die Daten vor für die Analyse und gruppiert bei Bedarf"""
+        """
+        Prepares and sorts the data for analysis and groups if necessary
+
+        :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
+        """
 
         df = pd.read_sql(f"select * from data where indiz_id='{self.indiz_id}';", con=self.init_conn())
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
@@ -173,20 +177,22 @@ class MainAnalyzer(BaseLoader):
                 # Wenn die Spalte year_month gebraucht wird
                 df['year_month'] = df['date'].dt.to_period('M')
 
+            if arg == "weekly":
+                df['weekly'] = df['date'].dt.to_period('W')
+
             if arg == "sift_out":
-                df = self.sift_out(df)
+                df = self.sift_out(df, args[0])
 
         return df
 
-    def sift_out(self, dataframe: pd.DataFrame, date_column: str = "year_month") -> pd.DataFrame:
+    def sift_out(self, dataframe: pd.DataFrame, date_column: str) -> pd.DataFrame:
 
         """
-        Errechnet standardmäßig für jeden Monat die Höchs-, Tiefst- und Schlusskurse und gibt nur diese in einem neuen
-        dataframe zurück.
+        Calculates the high, low, and close prices for the grouped column and returns only these in a new dataframe.
 
-        :param dataframe: Das zu gruppierende Dataframe.
-        :param date_column: nach welcher Spalte gruppiert werden soll.
-        :return: Gibt ein vor aggregiertes Dataframe zurück.
+        :param dataframe: The dataframe to be grouped.
+        :param date_column: Nach welcher Spalte gruppiert werden soll.
+        :return: Returns a pre-aggregated dataframe.
         """
 
         # Gruppen werden erstellt

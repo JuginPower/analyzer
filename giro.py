@@ -12,10 +12,10 @@ def to_float(str_number: str, absolut=True):
     result = None
 
     try:
-        if len(str_number) > 7:
+        if len(str_number) >= 7:
             result = str_number.replace(".", "_").replace(",", ".")
         
-        elif len(str_number) <= 7:
+        elif len(str_number) < 7:
             result = str_number.replace(",", ".")
 
         if absolut:

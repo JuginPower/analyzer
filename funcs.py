@@ -246,20 +246,20 @@ def kneighbors_process(path_database: str):
     # Data preparation
     indiz_id = choose_id(path_database, "KNeighbors Regression")
     ma = MainAnalyzer(indiz_id)
-    df_monthly = ma.prepare_dataframe('year_month', 'sift_out')
+    df_weekly = ma.prepare_dataframe('weekly', 'sift_out')
 
     # Keep one last row secret for the pending month
-    df_final_test = df_monthly.tail(1).copy()
-    df_monthly.drop([len(df_monthly) - 1], inplace=True)
+    df_final_test = df_weekly.tail(1).copy()
+    df_weekly.drop([len(df_weekly) - 1], inplace=True)
 
     # Data preparation for sklearn
-    X = df_monthly.loc[:, ["open", "high", "low"]]
-    y = df_monthly.loc[:, ["close"]]
+    X = df_weekly.loc[:, ["open"]]
+    y = df_weekly.loc[:, ["close"]]
     X = X.to_numpy()
     y = y.to_numpy()
 
     # Some extra unknown data
-    X_final = df_final_test.loc[:, ["open", "high", "low"]]
+    X_final = df_final_test.loc[:, ["open"]]
     y_final = df_final_test.loc[:, ["close"]]
     X_final = X_final.to_numpy()
     y_final = y_final.to_numpy()
@@ -288,7 +288,7 @@ def kneighbors_process(path_database: str):
 
     # prediction
     final_prediction = grid_search.predict(X_final)
-    print(f"The final prediction for {df_final_test['year_month']}:\n{final_prediction}")
+    print(f"The final prediction for {df_final_test['weekly']}:\n{final_prediction}")
     print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final}")
 
 
