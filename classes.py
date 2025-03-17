@@ -1,8 +1,6 @@
 from datetime import datetime
 import sqlite3
 import pandas as pd
-
-from loading_datapi import result
 from settings import mariadb_config
 import mysql.connector
 import logging

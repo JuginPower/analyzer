@@ -8,3 +8,4 @@ __pycache__/
 *.sqlite3
 settings.py
 *ipynb*
+*.log
