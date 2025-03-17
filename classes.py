@@ -5,58 +5,23 @@ from settings import mariadb_config
 import mysql.connector
 import logging
 from time import sleep
+from datalayer import MysqlConnectorManager
 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
-class BaseLoader:
+class BaseLoader(MysqlConnectorManager):
 
     def __init__(self, config: dict = mariadb_config):
 
+        super().__init__(config)
         self.config = config
-
-    def init_conn(self, attempts=3, delay=2):
-
-        """
-        Initialize the connection with my mariadb database.
-
-        :param attempts: amount of attempts
-        :param delay: waiting seconds for trying to reconnect
-        """
-
-        attempt = 1
-        # Implement a reconnection routine
-        while attempt < attempts + 1:
-            try:
-                return mysql.connector.connect(**self.config)
-            except (mysql.connector.Error, IOError) as err:
-                if attempts is attempt:
-                    # Attempts to reconnect failed; returning None
-                    logger.info("Failed to connect, exiting without a connection: %s", err)
-                    return None
-                logger.error(
-                    "Connection failed: %s. Retrying (%d/%d)...",
-                    err,
-                    attempt,
-                    attempts - 1,
-                )
-                # progressive reconnect delay
-                sleep(delay ** attempt)
-                attempt += 1
-        return None
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
-        conn = self.init_conn()
-        cursor = conn.cursor()
-
-        query = f"select {column} from {tablename} where {column} like '%{filtername}%';"
-
-        cursor.execute(query)
-        result = cursor.fetchall()
-        conn.close()
+        result = self.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
 
         if len(result) == 0:
             return False
@@ -64,13 +29,10 @@ class BaseLoader:
 
     def upload(self, item_name: str, date: datetime, values: list):
 
-        conn = self.init_conn()
-        cursor = conn.cursor()
         try:
             date = date.strftime("%d-%m-%Y")
-            cursor.execute(f"select item_id from items where name like '%{item_name}%';")
-            item_id = cursor.fetchall()[0][0]
-            cursor.execute(f"select high, low, close from stock_price where date='{date}' and indiz_id='{indiz_id}';")
+            item_id = self.select(f"select item_id from items where name like '%{item_name}%';")[0][0]
+            result = self.select(f"select high, low, close from stock_price where date='{date}' and item_id='{item_id}';")
 
             opening = values[0]
             high = max(values)
@@ -85,18 +47,15 @@ class BaseLoader:
                 if low > result[0][1]:
                     low = result[0][1]
 
-                result = self.query(f"update data set high='{high}', low='{low}', close='{close}' where date='{date}' and indiz_id='{indiz_id}';")
+                result = self.query(f"update data set high='{high}', low='{low}', close='{close}' where date='{date}' and item_id='{item_id}';")
 
             else:
-                result = self.query("insert into data values (?, ?, ?, ?, ?, ?);",
-                                    tuple([date, indiz_id, opening, high, low, close]))
+                result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);",
+                                    tuple([item_id, date, opening, high, low, close]))
 
-        except (KeyError, mysql.connector.errors, IndexError) as err:
-            raise err
-
-        except IndexError as err:
-            print(f"Something goes wrong for {indiz_name}!")
-            print("Parameters are:", indiz_name, date, values)
+        except (IndexError, KeyError) as err:
+            print(f"Something goes wrong for {item_name}!")
+            print("Parameters are:", item_name, date, values)
             raise err
 
         else:
@@ -111,14 +70,14 @@ class ApiLoader(BaseLoader):
     def upload(self, data_source: list):
 
         try:
-            data_source.sort(key=lambda k: k["indiz"])
+            data_source.sort(key=lambda k: k["item"])
             data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%d-%m-%Y"))
 
         except (AttributeError, KeyError, IndexError) as err:
             raise err
 
         else:
-            old_indiz = None
+            old_item = None
             old_date = None
             numbers = []
 
@@ -126,30 +85,30 @@ class ApiLoader(BaseLoader):
                 for item in data_source:
 
                     actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
-                    actual_indiz: str = item.get("item")
+                    actual_item: str = item.get("item")
 
-                    if not self.check_presence(tablename="indiz", column="name", filtername=actual_indiz):
-                        result = self.query(f"insert into indiz (name) values ('{actual_indiz}');")
+                    if not self.check_presence(tablename="items", column="name", filtername=actual_item):
+                        result = self.query(f"insert into items (name) values (%s);", tuple(actual_item))
 
-                    if not old_indiz:
-                        old_indiz = actual_indiz
+                    if not old_item:
+                        old_item = actual_item
 
                     if not old_date:
                         old_date = actual_date_obj
 
-                    if old_date.day == actual_date_obj.day and old_indiz in item.get("indiz"):
+                    if old_date.day == actual_date_obj.day and old_item in item.get("item"):
                         numbers.append(item.get("data"))
 
-                    elif not (old_date.day == actual_date_obj.day and old_indiz in item.get("indiz")):
+                    elif not (old_date.day == actual_date_obj.day and old_item in item.get("item")):
 
-                        result = super().upload(old_indiz, old_date, numbers)
-                        old_indiz = item.get("indiz")
+                        result = super().upload(old_item, old_date, numbers)
+                        old_item = item.get("item")
                         old_date = actual_date_obj
                         numbers = []
 
-                result = super().upload(old_indiz, old_date, numbers)
+                result = super().upload(old_item, old_date, numbers)
 
-            except (KeyError, sqlite3.Error, IndexError) as err:
+            except (KeyError, IndexError) as err:
                 raise err
 
             return result
@@ -163,7 +122,7 @@ class CsvLoader(BaseLoader):
     def upload(self, data_source: list):
 
         try:
-            result = self.query("insert into data values (?, ?, ?, ?, ?, ?);", data_source)
+            result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", data_source)
 
         except (sqlite3.Error, TypeError) as err:
             raise err
@@ -174,24 +133,24 @@ class CsvLoader(BaseLoader):
 
 class MainAnalyzer(BaseLoader):
 
-    def __init__(self, indiz_id: int):
+    def __init__(self, item_id: int):
         super().__init__()
 
-        self.indiz_id = indiz_id
-        self.title: str = self.select(f"select name from indiz where indiz_id='{self.indiz_id}';")[0][0]
+        self.item_id = item_id
+        self.title: str = self.select(f"select name from items where item_id='{self.item_id}';")[0][0]
 
-    def renew(self, indiz_id: int=None, *args) -> pd.DataFrame:
+    def renew(self, item_id: int=None, *args) -> pd.DataFrame:
 
         """
         Opens a new dataframe with new arguments if necessary.
 
-        :param indiz_id: The index ID for identifying the financial instrument.
+        :param item_id: The index ID for identifying the financial instrument.
         :param args: Additional arguments to ensure correct data extraction.
         :return: Returns a new dataframe.
         """
 
-        if indiz_id:
-            self.indiz_id = indiz_id
+        if item_id:
+            self.item_id = item_id
 
         if len(args) > 0:
             return self.prepare_dataframe([arg for arg in args])
@@ -206,7 +165,7 @@ class MainAnalyzer(BaseLoader):
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from data where indiz_id='{self.indiz_id}';", con=self.init_conn())
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.init_conn())
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 

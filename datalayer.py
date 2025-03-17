@@ -1,4 +1,11 @@
 import sqlite3
+import mysql.connector
+import logging
+from time import sleep
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="datalayer.log", encoding="utf-8", level=logging.ERROR,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 sql_script = """
 BEGIN TRANSACTION;
@@ -32,6 +39,77 @@ CREATE TABLE IF NOT EXISTS "data" (
 );
 COMMIT;
 """
+
+class MysqlConnectorManager:
+
+    def __init__(self, config: dict):
+
+        self.config = config
+
+    def init_conn(self, attempts=3, delay=2):
+
+        """
+        Initialize the connection with my mariadb database.
+
+        :param attempts: amount of attempts
+        :param delay: waiting seconds for trying to reconnect
+        """
+
+        attempt = 1
+        # Implement a reconnection routine
+        while attempt < attempts + 1:
+            try:
+                return mysql.connector.connect(**self.config)
+            except (mysql.connector.Error, IOError) as err:
+                if attempts is attempt:
+                    # Attempts to reconnect failed; returning None
+                    logger.info("Failed to connect, exiting without a connection: %s", err)
+                    return None
+                logger.error(
+                    "Connection failed: %s. Retrying (%d/%d)...",
+                    err,
+                    attempt,
+                    attempts - 1,
+                )
+                # progressive reconnect delay
+                sleep(delay ** attempt)
+                attempt += 1
+        return None
+
+    def select(self, sqlstring):
+
+        mydb = self.init_conn()
+        cursor = mydb.cursor()
+
+        try:
+            cursor.execute(sqlstring)
+        except (mysql.connector.Error, IOError) as err:
+            raise err
+
+        result = cursor.fetchall()
+        mydb.close()
+        return result
+
+    def query(self, sqlstring, val=None) -> int:
+
+        mydb = self.init_conn()
+        mycursor = mydb.cursor()
+
+        try:
+            if isinstance(val, list):
+                mycursor.executemany(sqlstring, val)
+            elif isinstance(val, tuple):
+                mycursor.execute(sqlstring, val)
+            elif not val:
+                mycursor.execute(sqlstring)
+
+        except (mysql.connector.Error, IOError) as err:
+            raise err
+
+        mydb.commit()
+        mydb.close()
+        return mycursor.rowcount
+
 
 class SqliteDatamanager:
 
@@ -77,6 +155,10 @@ class SqliteDatamanager:
         result = mycursor.fetchall()
         mydb.close()
         return result
+
+    def select_pragma_info(self, tablename: str):
+
+        return self.select(f"select * from pragma_table_info('{tablename}');")
 
     def query(self, sqlstring, val=None) -> int:
 
