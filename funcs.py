@@ -1,11 +1,13 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from datalayer import SqliteDatamanager
+from datalayer import SqliteDatamanager, MysqlConnectorManager
 from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
+
+from settings import mariadb_config
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -152,18 +154,17 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
     fig.show()
 
 
-def choose_id(path_db: str, theory_name: str) -> int:
+def choose_id(theory_name: str) -> int:
     """
     This function should simply explain the user which id stands for which index
 
-    :param path_db: database string for the connection with the database
     :theory_name: Kind of theory name for right naming purposes
 
     :return: the id for further evaluation
     """
 
-    dm = SqliteDatamanager(path_db)
-    indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in dm.select("select * from indiz;")]
+    dm = MysqlConnectorManager(mariadb_config)
+    indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in dm.select("select * from items;")]
     indiz_ids = []
     choosed_id = None
 
@@ -190,15 +191,14 @@ def choose_id(path_db: str, theory_name: str) -> int:
     return choosed_id
 
 
-def normal_distribution_process(path_database: str):
+def normal_distribution_process():
 
     """
     Starts the theory process of normal distribution
 
-    :param path_database: The connection string from the database
     """
 
-    choosed_id = choose_id(path_database, "normal distributions")
+    choosed_id = choose_id("normal distributions")
     ma = MainAnalyzer(choosed_id)
 
     df_orig = ma.prepare_dataframe('year_month', 'sift_out')
@@ -235,7 +235,7 @@ def normal_distribution_process(path_database: str):
     show_graph_objects(df_last_month, ma.title)
 
 
-def kneighbors_process(path_database: str):
+def kneighbors_process():
 
     """
     Starts the theory process of kneighbors regression prediction.
@@ -244,7 +244,7 @@ def kneighbors_process(path_database: str):
     """
 
     # Data preparation
-    indiz_id = choose_id(path_database, "KNeighbors Regression")
+    indiz_id = choose_id("KNeighbors Regression")
     ma = MainAnalyzer(indiz_id)
     df_weekly = ma.prepare_dataframe('weekly', 'sift_out')
 
@@ -292,7 +292,7 @@ def kneighbors_process(path_database: str):
     print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final}")
 
 
-def pivots_process(path_database: str):
+def pivots_process():
 
     """
     Starts the theory process of pivots.
@@ -300,7 +300,7 @@ def pivots_process(path_database: str):
     :param path_database: The connection string from the database
     """
 
-    choosed_id = choose_id(path_database, "pivots")
+    choosed_id = choose_id("pivots")
     pm = PivotMaker(choosed_id)
     df_pivots: pd.DataFrame = pm.prepare_dataframe('year_month', 'sift_out', 'make_pivots')
     df_last_month: pd.DataFrame = pm.get_last_month(df_pivots)
@@ -308,7 +308,7 @@ def pivots_process(path_database: str):
     show_graph_objects(df_last_month, pm.title, propabilities)
 
 
-def choose_theory(path_database: str):
+def choose_theory():
 
     theories = {1: "pivots", 2: "normal distribution", 3: "kneighbors regressions"}
 
@@ -329,7 +329,7 @@ def choose_theory(path_database: str):
             continue
         else:
             match theory_number:
-                case 1: pivots_process(path_database)
-                case 2: normal_distribution_process(path_database)
-                case 3: kneighbors_process(path_database)
+                case 1: pivots_process()
+                case 2: normal_distribution_process()
+                case 3: kneighbors_process()
                 case _: continue

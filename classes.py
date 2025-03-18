@@ -1,11 +1,9 @@
 from datetime import datetime
-import sqlite3
 import pandas as pd
-from settings import mariadb_config
-import mysql.connector
+from settings import mariadb_config, mariadb_string
 import logging
-from time import sleep
 from datalayer import MysqlConnectorManager
+from sqlalchemy import create_engine
 
 
 logger = logging.getLogger(__name__)
@@ -14,10 +12,9 @@ logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERR
 
 class BaseLoader(MysqlConnectorManager):
 
-    def __init__(self, config: dict = mariadb_config):
+    def __init__(self):
 
-        super().__init__(config)
-        self.config = config
+        super().__init__(mariadb_config)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
@@ -30,7 +27,7 @@ class BaseLoader(MysqlConnectorManager):
     def upload(self, item_name: str, date: datetime, values: list):
 
         try:
-            date = date.strftime("%d-%m-%Y")
+            date: str = date.strftime("%Y-%m-%d")
             item_id = self.select(f"select item_id from items where name like '%{item_name}%';")[0][0]
             result = self.select(f"select high, low, close from stock_price where date='{date}' and item_id='{item_id}';")
 
@@ -47,10 +44,10 @@ class BaseLoader(MysqlConnectorManager):
                 if low > result[0][1]:
                     low = result[0][1]
 
-                result = self.query(f"update data set high='{high}', low='{low}', close='{close}' where date='{date}' and item_id='{item_id}';")
+                result = self.query(f"update stock_price set high='{high}', low='{low}', close='{close}' where date='{date}' and item_id='{item_id}';")
 
             else:
-                result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);",
+                result = self.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);",
                                     tuple([item_id, date, opening, high, low, close]))
 
         except (IndexError, KeyError) as err:
@@ -114,21 +111,48 @@ class ApiLoader(BaseLoader):
             return result
 
 
-class CsvLoader(BaseLoader):
+"""class CsvLoader(MysqlConnectorManager):
 
     def __init__(self):
-        super().__init__()
+        super().__init__(mariadb_config)
 
-    def upload(self, data_source: list):
+    def upload(self, item_id: int, data_file: str):
+
+        values = []
+
+        with open(data_file, "r") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=",")
+            for row in reader:
+                try:
+                    date_field = reader.fieldnames[0] # Selbsterkennung implementieren
+                    open_field = reader.fieldnames[2]
+                    high_field = reader.fieldnames[3]
+                    low_field = reader.fieldnames[4]
+                    close_field = reader.fieldnames[1]
+
+                    item = (
+                        row[date_field].replace(".", "-"),
+                        item_id,
+                        self.to_float(row[open_field]),
+                        self.to_float(row[high_field]),
+                        self.to_float(row[low_field]),
+                        self.to_float(row[close_field])
+                    )
+
+                except (IndexError, TypeError, ValueError) as err:
+                    raise err
+
+                else:
+                    values.append(item)
 
         try:
-            result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", data_source)
+            result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", values)
 
-        except (sqlite3.Error, TypeError) as err:
+        except TypeError as err:
             raise err
 
         else:
-            return result
+            return result"""
 
 
 class MainAnalyzer(BaseLoader):
@@ -165,7 +189,7 @@ class MainAnalyzer(BaseLoader):
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.init_conn())
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=create_engine(mariadb_string))
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 
@@ -265,6 +289,38 @@ class MainAnalyzer(BaseLoader):
             df_merged[column] = [anal_dataframe.iloc[-1, columns.index(column)] for x in range(len(df_merged))]
 
         return df_merged
+
+    def to_float(self, str_number: str, absolut=False) -> float:
+
+        """
+        Formats a string into a floating point number.
+
+        :param str_number: The string to be formatted.
+        :param absolut: Determines whether the floating point number should represent an absolute value or not.
+        :return: Returns the completely transformed floating point number.
+        """
+
+        result = None
+
+        try:
+            if len(str_number) >= 7:
+                result = str_number.replace(".", "_").replace(",", ".")
+
+            elif len(str_number) < 7:
+                result = str_number.replace(",", ".")
+
+            if absolut:
+                result = abs(float(result))
+            elif not absolut:
+                result = float(result)
+
+        except ValueError as err:
+            raise err
+
+        except TypeError as err:
+            raise err
+
+        return result
 
 
 class PivotMaker(MainAnalyzer):
