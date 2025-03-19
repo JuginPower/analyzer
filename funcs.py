@@ -1,14 +1,12 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from datalayer import SqliteDatamanager, MysqlConnectorManager
+from datalayer import MysqlConnectorManager
 from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
 from settings import mariadb_config
-import numpy as np
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -240,13 +238,12 @@ def ai_process():
 
     """
     Starts the theory process of ai prediction.
-
     """
 
     # Data preparation
     item_id = choose_id("KNeighbors Regression")
     ma = MainAnalyzer(item_id)
-    df_normal = ma.prepare_dataframe('M', 'sift_out')
+    df_normal = ma.prepare_dataframe('W', 'sift_out')
 
     # Keep one last row secret for the pending month
     df_final_test = df_normal.tail(1).copy()
@@ -295,15 +292,13 @@ def ai_process():
     # prediction
     final_prediction = grid_search.predict(X_final)
     print(f"\nThe final prediction for {df_final_test.iloc[0, 0]}: {final_prediction[0][0]}")
-    print(f"\nBruce Danel says 'Das ist die Wahrheit:' {y_final[0][0]}")
+    print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final[0][0]}")
 
 
 def pivots_process():
 
     """
     Starts the theory process of pivots.
-
-    :param path_database: The connection string from the database
     """
 
     choosed_id = choose_id("pivots")
@@ -317,7 +312,7 @@ def pivots_process():
 def choose_theory():
 
     theories = {1: "pivots", 2: "normal distribution", 3: "kneighbors regressions"}
-
+    print()
     while True:
 
         for item in theories.items():
