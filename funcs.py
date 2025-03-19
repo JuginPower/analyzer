@@ -6,6 +6,7 @@ from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.linear_model import LinearRegression
 from settings import mariadb_config
 
 
@@ -235,13 +236,8 @@ def normal_distribution_process():
 
 
 def ai_process():
-
-    """
-    Starts the theory process of ai prediction.
-    """
-
     # Data preparation
-    item_id = choose_id("KNeighbors Regression")
+    item_id = choose_id("KNeighbors & Linear Regression")
     ma = MainAnalyzer(item_id)
     df_normal = ma.prepare_dataframe('W', 'sift_out')
 
@@ -250,48 +246,41 @@ def ai_process():
     df_normal.drop([len(df_normal) - 1], inplace=True)
 
     # Data preparation for sklearn
-    X = df_normal.loc[:, ["open"]]
-    y = df_normal.loc[:, ["close"]]
-    X = X.to_numpy()
-    y = y.to_numpy()
+    X = df_normal.loc[:, ["open"]].to_numpy()
+    y = df_normal.loc[:, ["close"]].to_numpy()
 
     # Some extra unknown data
-    X_final = df_final_test.loc[:, ["open"]]
-    y_final = df_final_test.loc[:, ["close"]]
-    X_final = X_final.to_numpy()
-    y_final = y_final.to_numpy()
+    X_final = df_final_test.loc[:, ["open"]].to_numpy()
+    y_final = df_final_test.loc[:, ["close"]].to_numpy()
 
-    # Splitting the data for main training and tests
+    # Splitting the data for training and tests
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
-    knn = KNeighborsRegressor()
-    param_grid = {"n_neighbors": range(1, 21, 1),
-                  "weights": ["uniform", "distance"],
-                  "p": [1, 2],
-                  "algorithm": ["ball_tree", "kd_tree", "brute"]}
+    ### LinearRegression GridSearch ###
+    lr = LinearRegression()
+    param_grid_lr = {
+        "fit_intercept": [True, False],
+        "positive": [True, False]
+    }
 
-    grid_search = GridSearchCV(knn, param_grid, cv=5, refit=True, scoring='neg_mean_absolute_percentage_error', verbose=1)
+    grid_search_lr = GridSearchCV(lr, param_grid_lr, cv=5, refit=True, scoring='neg_mean_absolute_percentage_error', verbose=1)
+    grid_search_lr.fit(X_train, y_train)
 
-    # training the grid search
-    grid_search.fit(X_train, y_train)
-    train_best_score = grid_search.best_score_
-    train_best_params = grid_search.best_params_
-    print("\nBest training score:", train_best_score)
-    print("Best training params:", train_best_params)
+    print("\n[LinearRegression] Best training score:", grid_search_lr.best_score_)
+    print("[LinearRegression] Best training params:", grid_search_lr.best_params_)
 
-    # Test prediction
-    test_accuracy = grid_search.score(X_test, y_test)
-    print("\nTest Accuracy:", test_accuracy)
+    # Test prediction (Linear Regression)
+    test_accuracy_lr = grid_search_lr.score(X_test, y_test)
+    print("\n[LinearRegression] Test Accuracy:", test_accuracy_lr)
 
-    grid_search.fit(X, y)
-    live_best_score = grid_search.best_score_
-    live_best_params = grid_search.best_params_
-    print("\nBest live score:", live_best_score)
-    print("Best live params:", live_best_params)
+    # Live Training mit allen Daten (Linear Regression)
+    grid_search_lr.fit(X, y)
+    print("\n[LinearRegression] Best live score:", grid_search_lr.best_score_)
+    print("[LinearRegression] Best live params:", grid_search_lr.best_params_)
 
-    # prediction
-    final_prediction = grid_search.predict(X_final)
-    print(f"\nThe final prediction for {df_final_test.iloc[0, 0]}: {final_prediction[0][0]}")
+    # LinearRegression Final Prediction
+    final_prediction_lr = grid_search_lr.predict(X_final)
+    print(f"\n[LinearRegression] Final Prediction for {df_final_test.iloc[0, 0]}: {final_prediction_lr[0][0]}")
     print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final[0][0]}")
 
 
