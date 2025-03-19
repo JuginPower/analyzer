@@ -199,15 +199,15 @@ class MainAnalyzer(BaseLoader):
 
         for arg in args:
 
-            if arg == "year_month":
+            if arg == "M":
                 # Wenn die Spalte year_month gebraucht wird
-                df['year_month'] = df['date'].dt.to_period('M')
+                df['year_month'] = df['date'].dt.to_period(arg)
 
-            if arg == "weekly":
-                df['weekly'] = df['date'].dt.to_period('W')
+            if arg == "W":
+                df['weekly'] = df['date'].dt.to_period(arg)
 
             if arg == "sift_out":
-                df = self.sift_out(df, args[0])
+                df = self.sift_out(df, df.columns[-1])
 
         return df
 

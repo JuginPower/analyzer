@@ -6,8 +6,9 @@ from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
-
+from sklearn.tree import DecisionTreeRegressor
 from settings import mariadb_config
+import numpy as np
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -201,7 +202,7 @@ def normal_distribution_process():
     choosed_id = choose_id("normal distributions")
     ma = MainAnalyzer(choosed_id)
 
-    df_orig = ma.prepare_dataframe('year_month', 'sift_out')
+    df_orig = ma.prepare_dataframe('M', 'sift_out')
     high_spreads = [h - o for h, o in zip(df_orig["high"], df_orig["open"])]  # May Scatterplott
     low_spreads = [o - l for o, l in zip(df_orig["open"], df_orig["low"])]
 
@@ -235,26 +236,25 @@ def normal_distribution_process():
     show_graph_objects(df_last_month, ma.title)
 
 
-def kneighbors_process():
+def ai_process():
 
     """
-    Starts the theory process of kneighbors regression prediction.
+    Starts the theory process of ai prediction.
 
-    :param path_database: The connection string from the database
     """
 
     # Data preparation
-    indiz_id = choose_id("KNeighbors Regression")
-    ma = MainAnalyzer(indiz_id)
-    df_weekly = ma.prepare_dataframe('weekly', 'sift_out')
+    item_id = choose_id("KNeighbors Regression")
+    ma = MainAnalyzer(item_id)
+    df_normal = ma.prepare_dataframe('M', 'sift_out')
 
     # Keep one last row secret for the pending month
-    df_final_test = df_weekly.tail(1).copy()
-    df_weekly.drop([len(df_weekly) - 1], inplace=True)
+    df_final_test = df_normal.tail(1).copy()
+    df_normal.drop([len(df_normal) - 1], inplace=True)
 
     # Data preparation for sklearn
-    X = df_weekly.loc[:, ["open"]]
-    y = df_weekly.loc[:, ["close"]]
+    X = df_normal.loc[:, ["open"]]
+    y = df_normal.loc[:, ["close"]]
     X = X.to_numpy()
     y = y.to_numpy()
 
@@ -279,17 +279,23 @@ def kneighbors_process():
     grid_search.fit(X_train, y_train)
     train_best_score = grid_search.best_score_
     train_best_params = grid_search.best_params_
-    print("Best training score:", train_best_score)
+    print("\nBest training score:", train_best_score)
     print("Best training params:", train_best_params)
 
     # Test prediction
     test_accuracy = grid_search.score(X_test, y_test)
-    print("Test Accuracy:", test_accuracy)
+    print("\nTest Accuracy:", test_accuracy)
+
+    grid_search.fit(X, y)
+    live_best_score = grid_search.best_score_
+    live_best_params = grid_search.best_params_
+    print("\nBest live score:", live_best_score)
+    print("Best live params:", live_best_params)
 
     # prediction
     final_prediction = grid_search.predict(X_final)
-    print(f"The final prediction for {df_final_test['weekly']}:\n{final_prediction}")
-    print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final}")
+    print(f"\nThe final prediction for {df_final_test.iloc[0, 0]}: {final_prediction[0][0]}")
+    print(f"\nBruce Danel says 'Das ist die Wahrheit:' {y_final[0][0]}")
 
 
 def pivots_process():
@@ -302,7 +308,7 @@ def pivots_process():
 
     choosed_id = choose_id("pivots")
     pm = PivotMaker(choosed_id)
-    df_pivots: pd.DataFrame = pm.prepare_dataframe('year_month', 'sift_out', 'make_pivots')
+    df_pivots: pd.DataFrame = pm.prepare_dataframe('M', 'sift_out', 'make_pivots')
     df_last_month: pd.DataFrame = pm.get_last_month(df_pivots)
     propabilities: dict = pm.get_crossing_probability(df_pivots, 2000)
     show_graph_objects(df_last_month, pm.title, propabilities)
@@ -331,5 +337,5 @@ def choose_theory():
             match theory_number:
                 case 1: pivots_process()
                 case 2: normal_distribution_process()
-                case 3: kneighbors_process()
+                case 3: ai_process()
                 case _: continue
