@@ -4,6 +4,8 @@ from settings import mariadb_config, mariadb_string
 import logging
 from datalayer import MysqlConnectorManager
 from sqlalchemy import create_engine
+import random
+from copy import copy
 
 
 logger = logging.getLogger(__name__)
@@ -411,3 +413,142 @@ class PivotMaker(MainAnalyzer):
 
         return probabilities
 
+
+class KMeansClusterMain:
+
+    def __init__(self, n_clusters: int):
+
+        self.clusters = n_clusters
+        self._labels = None
+        self._centroids = None
+
+    def get_centroids(self):
+
+        """
+        Getter for the centroids which are computed
+
+        :return self._centroids: The new centroids
+        """
+
+        return  self._centroids
+
+    def get_labels(self):
+
+        """
+        Getter for the clusters
+
+        :return self._labels: The clusters
+        """
+
+        return self._labels
+
+    def fit(self, datapoints: list):
+
+        """
+        Begins the process where the reassignment of the centroids continued till the assignment of the clusters for
+        each datapoint ends
+
+        :param datapoints: one dimensional list of numerical datapoints
+        """
+
+        centroids = self._place_centroids(datapoints)
+        ordered_clusters = self._assign_nearest_centroid(datapoints, centroids)
+        new_centroids = self._replace_centroids(datapoints, ordered_clusters, centroids)
+        new_ordered_clusters = self._assign_nearest_centroid(datapoints, new_centroids)
+
+        while ordered_clusters != new_ordered_clusters:
+
+            # Necessary because of call by object behaviour from python its safely make independent copies and reassign
+            ordered_clusters = copy(new_ordered_clusters)
+            centroids = copy(new_centroids)
+
+            new_centroids = self._replace_centroids(datapoints, ordered_clusters, centroids)
+            new_ordered_clusters = self._assign_nearest_centroid(datapoints, new_centroids)
+
+        self._labels = new_ordered_clusters
+        self._centroids = centroids
+
+    def _place_centroids(self, datapoints: list) -> dict:
+
+        """
+        Choose random centroids in the pandas series
+
+        :param datapoints: A pandas Series with numerical values
+
+        :return dict: A dictionary with the centroids
+        """
+
+        result = {}
+
+        for n in range(self.clusters):
+            centroid = random.choice(datapoints)
+            result.update({"c" + str(n): centroid})
+
+        return result
+
+    def _assign_nearest_centroid(self, datapoints: list, centroids: dict) -> list:
+
+        """
+        Find the nearest centroid for any datapoint and assign this datapoint to this centroid
+
+        :param datapoints: A list wich is assumed to be the whole dataset.
+        :param centroids: A dictionary with the given centroids.
+
+        :return: An ordered list with the choosen centroids.
+        """
+
+        ordered_centroids = []
+
+        for dp in datapoints:
+
+            distances = []
+            names = []
+
+            for cent in centroids.items():
+                distances.append(abs(dp - cent[1]))
+                names.append(cent[0])
+
+            index_min_distance = distances.index(min(distances))
+            ordered_centroids.append(names[index_min_distance])
+
+        return ordered_centroids
+
+    def _replace_centroids(self, datapoints: list, ordered_clusters: list, centroids: dict):
+
+        """
+        Replace the centroids with new values.
+
+        :param datapoints: original datapoints
+        :param ordered_clusters: An ordered list of centroids assigned before to the datapoints
+        :param centroids: the centroids with the old values
+
+        :return: A dictionary with the old centroid keys but new centroid values
+        """
+
+        new_centroids = {}
+
+        for cent_key in centroids.keys():
+            cluster = [dtp for dtp, ordc in zip(datapoints, ordered_clusters) if ordc == cent_key]
+            new_centroid = sum(cluster) / len(cluster)
+            new_centroids.update({cent_key: new_centroid})
+
+        return new_centroids
+
+
+class HiddenMarkovModelMain:
+
+    def __init__(self, states: list):
+
+        self.states = states
+
+    def fit(self):
+
+        pass
+
+    def _get_initial_p(self):
+
+        """
+        It gets the initial probabilities for the different states
+        """
+
+        pass

@@ -5,7 +5,6 @@ from datalayer import MysqlConnectorManager
 from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn.linear_model import LinearRegression
 from settings import mariadb_config
 
@@ -282,6 +281,7 @@ def ai_process():
     final_prediction_lr = grid_search_lr.predict(X_final)
     print(f"\n[LinearRegression] Final Prediction for {df_final_test.iloc[0, 0]}: {final_prediction_lr[0][0]}")
     print(f"Bruce Danel says 'Das ist die Wahrheit:' {y_final[0][0]}")
+    print(f"Opening at {df_final_test.iloc[0, -2]}")
 
 
 def pivots_process():
@@ -323,3 +323,4 @@ def choose_theory():
                 case 2: normal_distribution_process()
                 case 3: ai_process()
                 case _: continue
+
