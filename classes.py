@@ -580,14 +580,16 @@ class HiddenMarkovModelMain:
 
         for i in range(1, len(datapoints)):
             direction = get_direction(datapoints[i])
+            row_p = []
 
             for yesterday_item in self.states_p[-1]:
-                today_state_p = [{trans_key: yesterday_item.get(trans_key[:2]) * trans_val} for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()]
-                for item in today_state_p:
-                    for key in item.keys():
-                        today_state_p[key] *= self.emission_p.get(key[:2] + direction)
-                        print(today_state_p)
+                today_state_k = [k for k in yesterday_item.keys()][0]
+                today_state_p = max([yesterday_item.get(trans_key[:2]) * trans_val * self.emission_p.get(trans_key[:2]+direction) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()])
+                row_p.append({today_state_k: today_state_p})
 
+            self.states_p.append(tuple(row_p))
+
+        print(self.states_p)
 
 
 
@@ -681,6 +683,7 @@ if __name__=='__main__':
     kmeans.fit(datapoints)
     clusters = kmeans.get_labels()
     df_ndafi["cluster"] = clusters
+    print(kmeans.get_centroids())
 
     # Start the Hidden Markov Process
     hmm = HiddenMarkovModelMain(clusters)
