@@ -6,6 +6,7 @@ from datalayer import MysqlConnectorManager
 from sqlalchemy import create_engine
 import random
 from copy import copy
+import plotly.express as px
 
 
 logger = logging.getLogger(__name__)
@@ -540,15 +541,161 @@ class HiddenMarkovModelMain:
     def __init__(self, states: list):
 
         self.states = states
+        self.states_p = []
+        self.emission_p = {}
+        self.initial_p = {}
+        self.transition_p = {}
 
-    def fit(self):
-
-        pass
-
-    def _get_initial_p(self):
+    def fit(self, datapoints: list):
 
         """
-        It gets the initial probabilities for the different states
+        Begins the process of Hidden Markov Model
         """
 
-        pass
+        def get_direction(number: int | float) -> str:
+            """
+            Returns a string depended on the parameter
+
+            :param number: A float or integer above or under 0
+            :return str: h or l
+            """
+
+            if number > 0:
+                return "h"
+            return "l"
+
+        amount_states = len(self.states)
+
+        for st in set(self.states):
+            self.initial_p.update({st: self.states.count(st) / amount_states})
+            self._get_emission_p(st, datapoints)
+
+        self._get_transition_p()
+
+        direction = get_direction(datapoints[0])
+
+        # Carefully because here begins the computation of best path
+        row_p = [{key: init_state_p * self.emission_p[key + direction]} for key, init_state_p in self.initial_p.items()]
+        self.states_p.append(tuple(row_p))
+
+        for i in range(1, len(datapoints)):
+            direction = get_direction(datapoints[i])
+
+            for yesterday_item in self.states_p[-1]:
+                today_state_p = [{trans_key: yesterday_item.get(trans_key[:2]) * trans_val} for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()]
+                for item in today_state_p:
+                    for key in item.keys():
+                        today_state_p[key] *= self.emission_p.get(key[:2] + direction)
+                        print(today_state_p)
+
+
+
+
+    def _get_transition_p(self):
+
+        """
+        For getting the probability to each combination of transition from one state to another
+        """
+        unique_states = [k for k in self.initial_p.keys()]
+        states_copy: list = copy(self.states)
+
+        for st in unique_states:
+
+            for other_st in unique_states:
+
+                self.transition_p.update({st + "_" + other_st: 0})
+
+        while states_copy:
+
+            current_state = states_copy.pop(0)
+
+            if len(states_copy) == 0:
+                break
+            else:
+                next_state = states_copy.pop(0)
+                transition_key = current_state + "_" + next_state
+                self.transition_p[transition_key] += 1
+
+        for st in unique_states:
+
+            total = 0
+
+            for k, v in self.transition_p.items():
+
+                if st == k[0:2]:
+                    total += v
+
+            for k, v in self.transition_p.items():
+
+                if st == k[0:2]:
+                    self.transition_p[k] /= total
+
+    def _get_emission_p(self, actual_state: str, datapoints: list):
+
+        """
+        Gets the probability of emissions in any state
+        """
+        state_emissions = {actual_state + "h": 0, actual_state + "l": 0}
+        total_actual_st = 0
+
+        for dtp, state in zip(datapoints, self.states):
+
+            if dtp > 0 and state == actual_state:
+                state_emissions[actual_state + "h"] += 1
+                total_actual_st += 1
+
+            elif dtp < 0:
+                state_emissions[actual_state + "l"] += 1
+                total_actual_st += 1
+
+        for k in state_emissions:
+            state_emissions[k] /= total_actual_st
+
+        self.emission_p.update(state_emissions)
+
+
+if __name__=='__main__':
+
+    engine = create_engine(mariadb_string)
+    item_id = 5
+    sql_query = """
+    select 
+        `date`, 
+        `close` 
+    from stock_price 
+        where item_id={item_id}
+    order by `date` asc;
+    """.format(item_id=item_id)
+
+    # Compute percentage change
+    df_ndafi = pd.read_sql(sql_query, con=engine)
+    df_ndafi["date"] = pd.to_datetime(df_ndafi["date"], yearfirst=True)
+    df_ndafi["perc_change"] = df_ndafi["close"].pct_change()
+
+    # Also drop the first row because of pct_change
+    df_ndafi.dropna(inplace=True)
+
+    # Start the clustering process
+    datapoints = df_ndafi["perc_change"].to_list()
+    kmeans = KMeansClusterMain(3)
+    kmeans.fit(datapoints)
+    clusters = kmeans.get_labels()
+    df_ndafi["cluster"] = clusters
+
+    # Start the Hidden Markov Process
+    hmm = HiddenMarkovModelMain(clusters)
+    hmm.fit(datapoints)
+    print(df_ndafi.isna().any())
+    print(df_ndafi.info())
+    print(df_ndafi.head())
+
+    print("Emission probabilities:\n", hmm.emission_p)
+    print("Initial probabilities:\n", hmm.initial_p)
+    print("Transition probabilities:\n", hmm.transition_p)
+
+    df_ndafi_copy = df_ndafi.copy()
+    df_ndafi_copy.set_index("date", inplace=True)
+    df_ndafi_copy.drop(columns="close", inplace=True)
+
+    fig = px.scatter(df_ndafi_copy, color="cluster")
+    fig.show()
