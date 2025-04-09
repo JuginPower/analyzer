@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 import random
 from copy import copy
 import plotly.express as px
+import math
 
 
 logger = logging.getLogger(__name__)
@@ -420,28 +421,8 @@ class KMeansClusterMain:
     def __init__(self, n_clusters: int):
 
         self.clusters = n_clusters
-        self._labels = None
-        self._centroids = None
-
-    def get_centroids(self):
-
-        """
-        Getter for the centroids which are computed
-
-        :return self._centroids: The new centroids
-        """
-
-        return  self._centroids
-
-    def get_labels(self):
-
-        """
-        Getter for the clusters
-
-        :return self._labels: The clusters
-        """
-
-        return self._labels
+        self.labels = None
+        self.centroids = None
 
     def fit(self, datapoints: list):
 
@@ -466,8 +447,8 @@ class KMeansClusterMain:
             new_centroids = self._replace_centroids(datapoints, ordered_clusters, centroids)
             new_ordered_clusters = self._assign_nearest_centroid(datapoints, new_centroids)
 
-        self._labels = new_ordered_clusters
-        self._centroids = centroids
+        self.labels = new_ordered_clusters
+        self.centroids = centroids
 
     def _place_centroids(self, datapoints: list) -> dict:
 
@@ -535,7 +516,7 @@ class KMeansClusterMain:
 
         return new_centroids
 
-
+# In the future maybe solve the problem with the Log zero replacement
 class HiddenMarkovModelMain:
 
     def __init__(self, states: list):
@@ -568,14 +549,14 @@ class HiddenMarkovModelMain:
 
         for st in set(self.states):
             self.initial_p.update({st: self.states.count(st) / amount_states})
-            self._get_emission_p(st, datapoints)
+            self._compute_emission_p(st, datapoints)
 
-        self._get_transition_p()
+        self._compute_transition_p()
 
         direction = get_direction(datapoints[0])
 
         # Carefully because here begins the computation of best path
-        row_p = [{key: init_state_p * self.emission_p[key + direction]} for key, init_state_p in self.initial_p.items()]
+        row_p = [{key: math.log(init_state_p) + math.log(self.emission_p[key + direction])} for key, init_state_p in self.initial_p.items()]
         self.states_p.append(tuple(row_p))
 
         for i in range(1, len(datapoints)):
@@ -584,19 +565,15 @@ class HiddenMarkovModelMain:
 
             for yesterday_item in self.states_p[-1]:
                 today_state_k = [k for k in yesterday_item.keys()][0]
-                today_state_p = max([yesterday_item.get(trans_key[:2]) * trans_val * self.emission_p.get(trans_key[:2]+direction) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()])
+                today_state_p = max([yesterday_item.get(trans_key[:2]) + math.log(trans_val) + math.log(self.emission_p.get(trans_key[:2]+direction)) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()])
                 row_p.append({today_state_k: today_state_p})
 
             self.states_p.append(tuple(row_p))
 
-        print(self.states_p)
-
-
-
-    def _get_transition_p(self):
+    def _compute_transition_p(self):
 
         """
-        For getting the probability to each combination of transition from one state to another
+        For computing the probability to each combination of transition from one state to another
         """
         unique_states = [k for k in self.initial_p.keys()]
         states_copy: list = copy(self.states)
@@ -619,7 +596,7 @@ class HiddenMarkovModelMain:
                 self.transition_p[transition_key] += 1
 
         for st in unique_states:
-
+            # The total variable represents the total amount auf transitions for each unique state
             total = 0
 
             for k, v in self.transition_p.items():
@@ -632,10 +609,13 @@ class HiddenMarkovModelMain:
                 if st == k[0:2]:
                     self.transition_p[k] /= total
 
-    def _get_emission_p(self, actual_state: str, datapoints: list):
+    def _compute_emission_p(self, actual_state: str, datapoints: list):
 
         """
-        Gets the probability of emissions in any state
+        Gets the probability of two possible emissions 'h' and 'l' in any state
+
+        :param actual_state: the actual given state in a row
+        :param datapoints: the population of all floats around number 0 used to determine the emission 'h' or 'l'
         """
         state_emissions = {actual_state + "h": 0, actual_state + "l": 0}
         total_actual_st = 0
@@ -650,10 +630,121 @@ class HiddenMarkovModelMain:
                 state_emissions[actual_state + "l"] += 1
                 total_actual_st += 1
 
+        # Laplace Smoothing
+        total_actual_st += 2
+        state_emissions[actual_state + "h"] += 1
+        state_emissions[actual_state + "l"] += 1
+
         for k in state_emissions:
             state_emissions[k] /= total_actual_st
 
         self.emission_p.update(state_emissions)
+
+
+class TrendColorIndicator:
+
+    """
+    Main goal of this class of objects is to serve as a wrapper class for the other implementations of the algorithms.
+    """
+
+    def __init__(self, n_clusters: int):
+
+        self._clusters = n_clusters
+        self._kmeans = KMeansClusterMain(self._clusters)
+        self._hmm = None
+
+    def fit(self, datapoints: list):
+
+        self._kmeans = KMeansClusterMain(self._clusters)
+        self._kmeans.fit(datapoints)
+        self._hmm = HiddenMarkovModelMain(self._kmeans.labels)
+        self._hmm.fit(datapoints)
+
+    def set_cluster(self, new_cluster: int):
+        """
+        Setter of the attribute _clusters for trying another case.
+
+        :param new_cluster: An integer which tells how many regimes or clusters to compute.
+        """
+
+        self._clusters = new_cluster
+
+    def get_states(self):
+
+        """
+        Getter for the original states or clusters.
+
+        :return: A list with the states
+        """
+
+        return self._hmm.states
+
+    def get_states_probabilities(self, treaded=True) -> list:
+
+        """
+        Getter for the computed probabilities for the states from the HiddenMarkovModel algorithm.
+
+        :param treaded: Boolean flag for treading the probs or not before returning
+        :return: The computed probabilities for the states
+        """
+        def custom_sort(element):
+            return list(element.values())[0]
+
+        winners = []
+        if treaded:
+            for tp, st in zip(self._hmm.states_p, self._hmm.states):
+
+                tp_l = list(tp)
+                tp_l.sort(key=custom_sort, reverse=True)
+
+                # Get the current largest prob for the state
+                state_largest_p = list(tp_l[0].keys())[0]
+                winners.append(state_largest_p)
+
+            return winners
+
+        else:
+            return self._hmm.states_p
+
+    def get_initial_probabilities(self):
+
+        """
+        Getter for the computed initial probabilities for the states from the HiddenMarkovModel algorithm.
+
+        :return: The computed initial probabilities for the states.
+        """
+
+        return self._hmm.initial_p
+
+    def get_emission_probabilities(self):
+
+        """
+        Getter for the computed emission probabilities for the states from the HiddenMarkovModel-Algorithm.
+
+        :return: The computed probabilities for the states
+        """
+
+        return self._hmm.emission_p
+
+    def get_transition_probabilities(self):
+
+        """
+        Getter for the computed transition probabilities for the states from the HiddenMarkovModel algorithm.
+
+        :return: The computed probabilities for the states
+        """
+
+        return self._hmm.transition_p
+
+    def get_centroids(self):
+
+        """
+        Getter for the centroids which are computed by the KMeans-Clustering-Algorithm
+
+        :return: The centroids which were computed by the KMeans-Clustering-Algorithm
+        """
+
+        return  self._kmeans.centroids
 
 
 if __name__=='__main__':
@@ -677,28 +768,13 @@ if __name__=='__main__':
     # Also drop the first row because of pct_change
     df_ndafi.dropna(inplace=True)
 
-    # Start the clustering process
     datapoints = df_ndafi["perc_change"].to_list()
-    kmeans = KMeansClusterMain(3)
-    kmeans.fit(datapoints)
-    clusters = kmeans.get_labels()
-    df_ndafi["cluster"] = clusters
-    print(kmeans.get_centroids())
 
-    # Start the Hidden Markov Process
-    hmm = HiddenMarkovModelMain(clusters)
-    hmm.fit(datapoints)
-    print(df_ndafi.isna().any())
-    print(df_ndafi.info())
-    print(df_ndafi.head())
-
-    print("Emission probabilities:\n", hmm.emission_p)
-    print("Initial probabilities:\n", hmm.initial_p)
-    print("Transition probabilities:\n", hmm.transition_p)
-
+    tdc = TrendColorIndicator(3)
+    tdc.fit(datapoints)
+    df_ndafi["states"] = tdc.get_states()
+    df_ndafi["states_p"] = tdc.get_states_probabilities()
     df_ndafi_copy = df_ndafi.copy()
-    df_ndafi_copy.set_index("date", inplace=True)
-    df_ndafi_copy.drop(columns="close", inplace=True)
 
-    fig = px.scatter(df_ndafi_copy, color="cluster")
-    fig.show()
+    """fig = px.scatter(df_ndafi_copy, color="cluster")
+    fig.show()"""
