@@ -6,7 +6,6 @@ from datalayer import MysqlConnectorManager
 from sqlalchemy import create_engine
 import random
 from copy import copy
-import plotly.express as px
 import math
 
 
@@ -555,17 +554,17 @@ class HiddenMarkovModelMain:
 
         direction = get_direction(datapoints[0])
 
-        # Carefully because here begins the computation of best path
-        row_p = [{key: math.log(init_state_p) + math.log(self.emission_p[key + direction])} for key, init_state_p in self.initial_p.items()]
+        # Bayes Theorem
+        row_p = [{key: (math.log(self.emission_p[key + direction]) + math.log(init_state_p)) - math.log(init_state_p)} for key, init_state_p in self.initial_p.items()]
         self.states_p.append(tuple(row_p))
 
         for i in range(1, len(datapoints)):
             direction = get_direction(datapoints[i])
             row_p = []
-
+            # Viterbi algorithm
             for yesterday_item in self.states_p[-1]:
                 today_state_k = [k for k in yesterday_item.keys()][0]
-                today_state_p = max([yesterday_item.get(trans_key[:2]) + math.log(trans_val) + math.log(self.emission_p.get(trans_key[:2]+direction)) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] in yesterday_item.keys()])
+                today_state_p = max([yesterday_item.get(trans_key[:2]) + math.log(trans_val) + math.log(self.emission_p.get(trans_key[:2]+direction)) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] == today_state_k])
                 row_p.append({today_state_k: today_state_p})
 
             self.states_p.append(tuple(row_p))
@@ -657,6 +656,7 @@ class TrendColorIndicator:
 
         self._kmeans = KMeansClusterMain(self._clusters)
         self._kmeans.fit(datapoints)
+        print(self._kmeans.centroids)
         self._hmm = HiddenMarkovModelMain(self._kmeans.labels)
         self._hmm.fit(datapoints)
 
@@ -770,7 +770,7 @@ if __name__=='__main__':
 
     datapoints = df_ndafi["perc_change"].to_list()
 
-    tdc = TrendColorIndicator(3)
+    tdc = TrendColorIndicator(2)
     tdc.fit(datapoints)
     df_ndafi["states"] = tdc.get_states()
     df_ndafi["states_p"] = tdc.get_states_probabilities()
