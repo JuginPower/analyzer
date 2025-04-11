@@ -1,11 +1,12 @@
 from datetime import datetime
-import pandas as pd
 from settings import mariadb_config, mariadb_string
-import logging
 from datalayer import MysqlConnectorManager
 from sqlalchemy import create_engine
-import random
 from copy import copy
+from funcs import sort_dict_values
+import pandas as pd
+import logging
+import random
 import math
 
 
@@ -526,7 +527,7 @@ class HiddenMarkovModelMain:
         self.initial_p = {}
         self.transition_p = {}
 
-    def fit(self, datapoints: list):
+    def fit(self, datapoints: list, window: int):
 
         """
         Begins the process of Hidden Markov Model
@@ -554,20 +555,37 @@ class HiddenMarkovModelMain:
 
         direction = get_direction(datapoints[0])
 
-        # Bayes Theorem
-        row_p = [{key: (math.log(self.emission_p[key + direction]) + math.log(init_state_p)) - math.log(init_state_p)} for key, init_state_p in self.initial_p.items()]
+        # First Day state probability
+        row_p = [{key: math.log(self.emission_p[key + direction]) + math.log(init_state_p)}
+                 for key, init_state_p in self.initial_p.items()]
         self.states_p.append(tuple(row_p))
-
+        counter = 0
         for i in range(1, len(datapoints)):
             direction = get_direction(datapoints[i])
             row_p = []
-            # Viterbi algorithm
-            for yesterday_item in self.states_p[-1]:
-                today_state_k = [k for k in yesterday_item.keys()][0]
-                today_state_p = max([yesterday_item.get(trans_key[:2]) + math.log(trans_val) + math.log(self.emission_p.get(trans_key[:2]+direction)) for trans_key, trans_val in self.transition_p.items() if trans_key[:2] == today_state_k])
-                row_p.append({today_state_k: today_state_p})
+            # Here comes the Viterbi algorithm
+            if counter == window:
+                row_p = [{key: math.log(self.emission_p[key + direction]) + math.log(init_state_p)}
+                         for key, init_state_p in self.initial_p.items()]
+                counter = 0
+            else:
+                yesterday_items = self.states_p[i-1]
+                for item in yesterday_items:
+                    today_state_choices_p = []
+
+                    for key in self.initial_p.keys():
+                        if key in item.keys():
+                            yest_state_p = item.get(key)
+                            for t_key in self.transition_p.keys():
+                                if key == t_key[:2]:
+                                    today_state_p = yest_state_p + math.log(self.transition_p.get(t_key)) + math.log(self.emission_p.get(key+direction))
+                                    today_state_choices_p.append({key: today_state_p})
+
+                    today_state_choices_p.sort(key=sort_dict_values, reverse=True)
+                    row_p.append(today_state_choices_p[0])
 
             self.states_p.append(tuple(row_p))
+            counter += 1
 
     def _compute_transition_p(self):
 
@@ -652,13 +670,13 @@ class TrendColorIndicator:
         self._kmeans = KMeansClusterMain(self._clusters)
         self._hmm = None
 
-    def fit(self, datapoints: list):
+    def fit(self, datapoints: list, window: int=20):
 
         self._kmeans = KMeansClusterMain(self._clusters)
         self._kmeans.fit(datapoints)
         print(self._kmeans.centroids)
         self._hmm = HiddenMarkovModelMain(self._kmeans.labels)
-        self._hmm.fit(datapoints)
+        self._hmm.fit(datapoints, window)
 
     def set_cluster(self, new_cluster: int):
         """
@@ -687,15 +705,13 @@ class TrendColorIndicator:
         :param treaded: Boolean flag for treading the probs or not before returning
         :return: The computed probabilities for the states
         """
-        def custom_sort(element):
-            return list(element.values())[0]
 
         winners = []
         if treaded:
             for tp, st in zip(self._hmm.states_p, self._hmm.states):
 
                 tp_l = list(tp)
-                tp_l.sort(key=custom_sort, reverse=True)
+                tp_l.sort(key=sort_dict_values, reverse=True)
 
                 # Get the current largest prob for the state
                 state_largest_p = list(tp_l[0].keys())[0]
@@ -770,8 +786,8 @@ if __name__=='__main__':
 
     datapoints = df_ndafi["perc_change"].to_list()
 
-    tdc = TrendColorIndicator(2)
-    tdc.fit(datapoints)
+    tdc = TrendColorIndicator(3)
+    tdc.fit(datapoints, 20)
     df_ndafi["states"] = tdc.get_states()
     df_ndafi["states_p"] = tdc.get_states_probabilities()
     df_ndafi_copy = df_ndafi.copy()
