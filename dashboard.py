@@ -1,9 +1,36 @@
-from funcs import choose_theory, choose_id, get_iqrs, remove_outliers, get_gaus_normald, get_std, show_graph_objects
+from funcs import choose_id, get_iqrs, remove_outliers, get_gaus_normald, get_std, show_graph_objects
 from copy import copy
 from classes import MainAnalyzer, PivotMaker
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.linear_model import LinearRegression
 import pandas as pd
+
+
+def choose_theory():
+
+    theories = {1: "pivots", 2: "normal distribution", 3: "kneighbors regressions"}
+    print()
+    while True:
+
+        for item in theories.items():
+            print("Press " + str(item[0]) + " for:", item[1])
+
+
+        theory_number = input("Choose the theory or q to quit: ")
+        if theory_number in ("q", "Q"):
+            break
+
+        try:
+            theory_number = int(theory_number)
+        except ValueError:
+            print("Only numbers allowed!")
+            continue
+        else:
+            match theory_number:
+                case 1: pivots_process()
+                case 2: normal_distribution_process()
+                case 3: ai_process()
+                case _: continue
 
 
 def normal_distribution_process():

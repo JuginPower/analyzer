@@ -674,7 +674,6 @@ class TrendColorIndicator:
 
         self._kmeans = KMeansClusterMain(self._clusters)
         self._kmeans.fit(datapoints)
-        print(self._kmeans.centroids)
         self._hmm = HiddenMarkovModelMain(self._kmeans.labels)
         self._hmm.fit(datapoints, window)
 
@@ -695,7 +694,10 @@ class TrendColorIndicator:
         :return: A list with the states
         """
 
-        return self._hmm.states
+        try:
+            return self._hmm.states
+        except AttributeError:
+            return self._kmeans.labels
 
     def get_states_probabilities(self, treaded=True) -> list:
 
@@ -786,11 +788,7 @@ if __name__=='__main__':
 
     datapoints = df_ndafi["perc_change"].to_list()
 
-    tdc = TrendColorIndicator(3)
-    tdc.fit(datapoints, 20)
-    df_ndafi["states"] = tdc.get_states()
-    df_ndafi["states_p"] = tdc.get_states_probabilities()
+    kmeans = KMeansClusterMain(3)
+    kmeans.fit(datapoints)
+    df_ndafi["cluster"] = kmeans.labels
     df_ndafi_copy = df_ndafi.copy()
-
-    """fig = px.scatter(df_ndafi_copy, color="cluster")
-    fig.show()"""

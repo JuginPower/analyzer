@@ -7,7 +7,7 @@ statistics to make predictions about the development of certain values, companie
 ## Features
 - A working algorithm for determining the [pivot](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) levels on a chart.
 	![example-pivots.png](docs/pics/example-pivots.png)
-- A working algorithm for determining the [standard deviations](https://en.wikipedia.org/wiki/Standard_deviation) of a price from the opening price of each month.
+- A working algorithm for determining the [standard deviations](https://en.wikipedia.org/wiki/Standard_deviation) of a stock from the opening price of each month.
     ![example-standard deviation.png](docs/pics/example-standard%20deviation.png)
 ### Planed Features
 - Switch to a Maria DB database
@@ -31,40 +31,62 @@ needs. Here you can see the SqliteDatamanager class, which only contains two met
 method only has read access to the database and query also has write access. Use it and be happy with sqlite :slightly_smiling_face:
 
 ```python
-import sqlite3
+import mysql.connector
+import logging
+from time import sleep
 
 
-class SqliteDatamanager:
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="datalayer.log", encoding="utf-8", level=logging.ERROR,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
-    def __init__(self, database_name: str):
+class MysqlConnectorManager:
 
-        self.connection_string = database_name
+    def __init__(self, config: dict):
 
-    def init_conn(self):
+        self.config = config
 
-        try:
-            conn = sqlite3.connect(self.connection_string)
-        except sqlite3.Error as err:
-            raise err
-        else:
-            list_tables = conn.execute("select name from sqlite_master where type='table';").fetchall()
+    def init_conn(self, attempts=3, delay=2):
 
-            if len(list_tables) < 2:
-                raise NameError(f"Database File: {self.connection_string}; does not exist and opened for the first time!")
+        """
+        Initialize the connection with my mariadb database.
 
-            return conn
+        :param attempts: amount of attempts
+        :param delay: waiting seconds for trying to reconnect
+        """
 
-    def select(self, sqlstring) -> list:
+        attempt = 1
+        # Implement a reconnection routine
+        while attempt < attempts + 1:
+            try:
+                return mysql.connector.connect(**self.config)
+            except (mysql.connector.Error, IOError) as err:
+                if attempts is attempt:
+                    # Attempts to reconnect failed; returning None
+                    logger.info("Failed to connect, exiting without a connection: %s", err)
+                    return None
+                logger.error(
+                    "Connection failed: %s. Retrying (%d/%d)...",
+                    err,
+                    attempt,
+                    attempts - 1,
+                )
+                # progressive reconnect delay
+                sleep(delay ** attempt)
+                attempt += 1
+        return None
+
+    def select(self, sqlstring):
 
         mydb = self.init_conn()
-        mycursor = mydb.cursor()
+        cursor = mydb.cursor()
 
         try:
-            mycursor.execute(sqlstring)
-        except sqlite3.Error as err:
+            cursor.execute(sqlstring)
+        except (mysql.connector.Error, IOError) as err:
             raise err
 
-        result = mycursor.fetchall()
+        result = cursor.fetchall()
         mydb.close()
         return result
 
@@ -81,7 +103,7 @@ class SqliteDatamanager:
             elif not val:
                 mycursor.execute(sqlstring)
 
-        except sqlite3.Error as err:
+        except (mysql.connector.Error, IOError) as err:
             raise err
 
         mydb.commit()

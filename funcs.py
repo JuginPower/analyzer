@@ -195,30 +195,3 @@ def choose_id(theory_name: str) -> int:
 
     return choosed_id
 
-
-def choose_theory():
-
-    theories = {1: "pivots", 2: "normal distribution", 3: "kneighbors regressions"}
-    print()
-    while True:
-
-        for item in theories.items():
-            print("Press " + str(item[0]) + " for:", item[1])
-
-
-        theory_number = input("Choose the theory or q to quit: ")
-        if theory_number in ("q", "Q"):
-            break
-
-        try:
-            theory_number = int(theory_number)
-        except ValueError:
-            print("Only numbers allowed!")
-            continue
-        else:
-            match theory_number:
-                case 1: pivots_process()
-                case 2: normal_distribution_process()
-                case 3: ai_process()
-                case _: continue
-

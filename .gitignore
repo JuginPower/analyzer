@@ -1,6 +1,7 @@
 data/
 .vscode/
-*.txt
+Notizen.txt
+Trading-Indikator.txt
 *.pdf
 myenv/
 __pycache__/
