@@ -453,9 +453,9 @@ class KMeansClusterMain:
     def _place_centroids(self, datapoints: list) -> dict:
 
         """
-        Choose random centroids in the pandas series
+        Choose random centroids in the list
 
-        :param datapoints: A pandas Series with numerical values
+        :param datapoints: A list with numerical values
 
         :return dict: A dictionary with the centroids
         """
@@ -464,7 +464,7 @@ class KMeansClusterMain:
 
         for n in range(self.clusters):
             centroid = random.choice(datapoints)
-            result.update({"c" + str(n): centroid})
+            result.update({n: centroid})
 
         return result
 
@@ -521,7 +521,7 @@ class HiddenMarkovModelMain:
 
     def __init__(self, states: list):
 
-        self.states = states
+        self.states = ["c" + str(st) for st in states]
         self.states_p = []
         self.emission_p = {}
         self.initial_p = {}
@@ -788,7 +788,10 @@ if __name__=='__main__':
 
     datapoints = df_ndafi["perc_change"].to_list()
 
-    kmeans = KMeansClusterMain(3)
-    kmeans.fit(datapoints)
-    df_ndafi["cluster"] = kmeans.labels
+    tdc = TrendColorIndicator(3)
+    tdc.fit(datapoints, 20)
+    df_ndafi["cluster"] = tdc.get_states_probabilities()
     df_ndafi_copy = df_ndafi.copy()
+    print(df_ndafi.info())
+    print(df_ndafi.head())
+    print(df_ndafi["cluster"].value_counts())

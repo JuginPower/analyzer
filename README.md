@@ -1,28 +1,73 @@
 # Analyzer 
 ## Project description
-This project aims to use technical chart analysis paired with fundamental analysis and the tools of descriptive 
-statistics to make predictions about the development of certain values, companies or indices on the financial market.
+This project or better say program aims to use technical chart analysis paired with fundamental analysis and the tools 
+of descriptive statistics to make predictions about the development of certain values, companies or indices on the 
+financial market. This project also aims to provide added value by adding functionality to my own financial accounting. 
+This will allow me to keep track of my own personal income and expenses. Because before you can even imagine how 
+wonderful it would be to be financially prosperous and free, you first have to get your costs under control.
 
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-## Features
-- A working algorithm for determining the [pivot](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) levels on a chart.
-	![example-pivots.png](docs/pics/example-pivots.png)
-- A working algorithm for determining the [standard deviations](https://en.wikipedia.org/wiki/Standard_deviation) of a stock from the opening price of each month.
-    ![example-standard deviation.png](docs/pics/example-standard%20deviation.png)
-### Planed Features
-- Switch to a Maria DB database
-- #### Implement the following ERM diagram:
-	![analyzer-ERM.png](docs/pics/analyzer-ERM.png)
+## Useful Features
 
-Here you can see a star schema of database tables that I plan to use in my mariadb server. I need this to better 
-classify the companies whose share prices I am analyzing. I use the [gics](https://en.wikipedia.org/wiki/Global_Industry_Classification_Standard) standard for this.
+### KMeans-Volatility-Cluster Indicator
+![DAX-KMeans.png](docs/pics/DAX-KMeans.png)
+
+**What's that?**
+
+> What you see here is by my self implemented AI KMeans-Clustering-Algorithm. It falls under the category of unsupervised
+> machine learning algorithms. I use this algorithm to first visually examine the volatility of various stock indices.
+> The picture show you daily percentage change in the closing price from the dax over the last 20 years.
+> 
+> Where the volatility of the percentage change is particularly high, the price also falls during this period. Regardless 
+> of whether there were percentage changes upwards or downwards. However, it is usually the first downward outliers that 
+> reveal a bearish phase. In all other cases, the price always rises steeply.
+>
+> The algorithm works by iteratively assigning data points to clusters based on their proximity to a central point, and 
+> then recalculating that central point to better represent the assigned data.
+
+If you’re thirsty for more technical details how the algorithm work, I recommend diving into 
+[Victor Lavrenko’s video series](https://www.youtube.com/watch?v=_aWzGGNrcic&list=PLIKsw1YCzYKPYvPtUbrcsDT5Y2ILcRm1D&index=29). 
+As an excellent data science teacher, he provides valuable insights and knowledge. 
+
+
+### Pivot Level-Chart
+
+![example-pivots.png](docs/pics/example-pivots.png)
+
+**Again, what's that?**
+
+> A working implementation of an algorithm for determining the 
+> [pivot](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) 
+> levels on a chart. And also the probability to reach this levels during the actual month on the right side of the legend 
+> based on historical data.
+
+### Planed Features
+
+#### KMeans and Hidden Markov Model united
+My next vision is to use the [Hidden Markov Model](https://en.wikipedia.org/wiki/Hidden_Markov_model) combined with my
+KMeans-Volatility-Cluster indicator like in that picture shown:
+
+![Kmeans-HMM-united.png](docs/pics/Kmeans-HMM-united.png)
+
+The special thing about the Hidden Markov Model is that it can predict the weather. I want to use it to predict the 
+weather on the stock market. With the pre-process of assigning data points to clusters based on the 
+KMeans-Volatility-Cluster indicator...
+
+**Explanation**
+> You have some kind of **
+
+I use the [gics](https://en.wikipedia.org/wiki/Global_Industry_Classification_Standard) standard for this.
 
 ## Build With
 - Python
 	- pandas
-	- requests
-	- sqlite3 (Database)
+	- seaborn
+    - plotly
+	- mysql-connector-python
+    - SQLAlchemy
 	- plotly
+    - Sphinx
+    - jupyter notebook
 
 ## Important developments
 As part of the project, I developed a rudimentary ERM mapper, or more accurately, a database driver. I was looking for 

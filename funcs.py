@@ -154,7 +154,7 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
             fig.add_trace(
                 go.Scatter(x=dataframe["date"], y=dataframe[column], mode="lines", name=column, line=dict(dash="solid")))
 
-    fig.update_layout(title=title, xaxis_title="Datum", yaxis_title='Preis', template='plotly')
+    fig.update_layout(title=title, xaxis_title="Date", yaxis_title='Price', template='plotly')
 
     fig.show()
 
