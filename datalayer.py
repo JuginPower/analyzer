@@ -8,36 +8,6 @@ logging.basicConfig(filename="datalayer.log", encoding="utf-8", level=logging.ER
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 sql_script = """
-BEGIN TRANSACTION;
-DROP TABLE IF EXISTS "indiz";
-CREATE TABLE IF NOT EXISTS "indiz" (
-	"indiz_id"	integer NOT NULL,
-	"name"	text NOT NULL,
-	PRIMARY KEY("indiz_id" AUTOINCREMENT)
-);
-DROP TABLE IF EXISTS "kategorien";
-CREATE TABLE IF NOT EXISTS "kategorien" (
-	"name"	TEXT NOT NULL,
-	"kid"	INTEGER NOT NULL,
-	PRIMARY KEY("kid" AUTOINCREMENT)
-);
-DROP TABLE IF EXISTS "keywords";
-CREATE TABLE IF NOT EXISTS "keywords" (
-	"kid"	INTEGER NOT NULL,
-	"name"	TEXT NOT NULL,
-	FOREIGN KEY("kid") REFERENCES "kategorien"("kid")
-);
-DROP TABLE IF EXISTS "data";
-CREATE TABLE IF NOT EXISTS "data" (
-	"date"	TEXT NOT NULL,
-	"indiz_id"	INTEGER NOT NULL,
-	"open"	REAL,
-	"high"	REAL,
-	"low"	REAL,
-	"close"	REAL,
-	FOREIGN KEY("indiz_id") REFERENCES "indiz" on update CASCADE on DELETE cascade
-);
-COMMIT;
 """
 
 class MysqlConnectorManager:
@@ -63,9 +33,9 @@ class MysqlConnectorManager:
             except (mysql.connector.Error, IOError) as err:
                 if attempts is attempt:
                     # Attempts to reconnect failed; returning None
-                    logger.info("Failed to connect, exiting without a connection: %s", err)
+                    logger.error("Failed to connect, exiting without a connection: %s", err)
                     return None
-                logger.error(
+                logger.info(
                     "Connection failed: %s. Retrying (%d/%d)...",
                     err,
                     attempt,
