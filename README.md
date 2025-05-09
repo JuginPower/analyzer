@@ -10,34 +10,36 @@ my personal financial accounting, allowing me to keep track of my personal incom
 ### KMeans-Volatility-Cluster Indicator
 ![DAX-KMeans.png](docs/pics/DAX-KMeans.png)
 
-**Explanation**
+<u>**Explanation**</u>
 
-> What you see here is by my self implemented AI KMeans-Clustering-Algorithm. It falls under the category of unsupervised
-> machine learning algorithms. I use this algorithm to first visually examine the volatility of various stock indices.
-> The picture show you daily percentage change in the closing price from the dax over the last 20 years.
-> 
-> Where the volatility of the percentage change is particularly high, the price also falls during this period. Regardless 
-> of whether there were percentage changes upwards or downwards. However, it is usually the first downward outliers that 
-> reveal a bearish phase. In all other cases, the price always rises steeply.
->
-> The algorithm works by iteratively assigning data points to clusters based on their proximity to a central point, and 
-> then recalculating that central point to better represent the assigned data.
+What you see here is by my self implemented AI KMeans-Clustering-Algorithm. It falls under the category of unsupervised
+machine learning algorithms. I use this algorithm to first visually examine the volatility of various stock indices.
+The picture show you daily percentage change in the closing price from the dax over the last 20 years.
+ 
+Where the volatility of the percentage change is particularly high, the price also falls during this period. Regardless 
+of whether there were percentage changes upwards or downwards. However, it is usually the first downward outliers that 
+reveal a bearish phase. In all other cases, the price always rises steeply.
+
+The algorithm works by iteratively assigning data points to clusters based on their proximity to a central point, and 
+then recalculating that central point to better represent the assigned data.
 
 If you’re thirsty for more technical details how the algorithm work, I recommend diving into 
-[Victor Lavrenko’s video series](https://www.youtube.com/watch?v=_aWzGGNrcic&list=PLIKsw1YCzYKPYvPtUbrcsDT5Y2ILcRm1D&index=29). 
-As an excellent data science teacher, he provides valuable insights and knowledge. 
+[Victor Lavrenko’s video series](https://www.youtube.com/watch?v=_aWzGGNrcic&list=PLIKsw1YCzYKPYvPtUbrcsDT5Y2ILcRm1D&index=29):
 
+[![Victor Lavrenko’s video series](https://img.youtube.com/vi/_aWzGGNrcic/0.jpg)](https://www.youtube.com/watch?v=_aWzGGNrcic)
+
+As an excellent data science teacher, he provides valuable insights and knowledge.
 
 ### Pivot Level-Chart
 
 ![example-pivots.png](docs/pics/example-pivots.png)
 
-**Explanation**
+<u>**Explanation**</u>
 
-> A working implementation of an algorithm for determining the 
-> [pivot](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) 
-> levels on a chart. And also the probability to reach this levels during the actual month on the right side of the legend 
-> based on historical data.
+A working implementation of an algorithm for determining the 
+[pivot](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) 
+levels on a chart. And also the probability to reach this levels during the actual month on the right side of the legend 
+based on historical data.
 
 ### Planed Features
 
@@ -47,14 +49,18 @@ KMeans-Volatility-Cluster indicator like in that picture shown:
 
 ![Kmeans-HMM-united.png](docs/pics/Kmeans-HMM-united.png)
 
-**Explanation**
-> The special feature of the Hidden Markov Model is the calculation of the probabilities of the states. These states 
-> could, for example, be the predefined **clusters** of the data points. I want to learn how to calculate transition 
-> probabilities, which is the probability of a change in state, as well as emission probabilities. So, what is the 
-> probability that the price will perform higher or lower under a certain state than the previous day? Getting the 
-> answer I want give these probabilities to a colorpicker to color the current price development and baam! You will 
-> then see rain showers coming your way as soon as the market is overheated. Like in this weather prediction video from
-> 
+**Explanation:**
+
+The special feature of the Hidden Markov Model is the calculation of the probabilities of the states. These states 
+could, for example, be the predefined **clusters** of the data points. I want to learn how to calculate transition 
+probabilities, which is the probability of a change in state, as well as emission probabilities. So, what is the 
+probability that the price will perform higher or lower under a certain state than the previous day? Getting the 
+answer I want give these probabilities to a colorpicker to color the current price development. You will 
+then see rain showers coming your way as soon as the market is overheated. Like in this weather prediction video from
+[Serrano - Academy](https://www.youtube.com/watch?v=kqSzLo9fenk):
+
+[![Serrano - Academy](https://img.youtube.com/vi/kqSzLo9fenk/0.jpg)](https://www.youtube.com/watch?v=kqSzLo9fenk)
+
 
 I already tried an implementation of the HMM like you see below, but get in trouble especially because of the overlapping
 probabilities from the best path to a given state which I compute with the help of 
