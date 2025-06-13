@@ -1,8 +1,11 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from datalayer import MysqlConnectorManager
 from settings import mariadb_config
+from pathlib import Path
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+from matplotlib.colors import Normalize
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -117,6 +120,22 @@ def remove_outliers(sample: list, quartiles: dict, factor=1.5):
     return [s for s in sample if whisker_high >= s >= whisker_low]
 
 
+def get_density(x: pd.Series | list, orig_density: dict):
+    """A function for calculating the density of a given x value.
+
+    :param x: The x value for which the density is calculated.
+
+    :param orig_density: The original density of the x value.
+
+    return: The density of the x value as a floating point number.
+
+    """
+    result = 0
+    for val in x:
+        result += orig_density.get(val)
+    return result
+
+
 def sort_dict_values(item: dict) -> int | float:
     """
     A custom sort helper function to identify with builtin which property needs to be sorted.
@@ -159,39 +178,62 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
     fig.show()
 
 
-def choose_id(theory_name: str) -> int:
+# Funktion zur Ermittlung der Farbverläufe innerhalb von Clustern
+def get_color(cluster, descriptive_series: pd.Series | dict, max_length):
     """
-    This function should simply explain the user which id stands for which index
-
-    :theory_name: Kind of theory name for right naming purposes
-
-    :return: the id for further evaluation
+    1. Ich muss hier noch den Farbskalenbereich bestimmen und die Position eines jeden Wertes den ich zeichnen will
+    normalisieren.
+    2. Ich muss herausfinden, was Interpolieren eines Farbwertes ist.
     """
+    vmin = (descriptive_series["mean"] - descriptive_series["std"]) * 2
+    vmax = (descriptive_series["mean"] + descriptive_series["std"]) * 2
 
-    dm = MysqlConnectorManager(mariadb_config)
-    indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in dm.select("select * from items;")]
-    indiz_ids = []
-    choosed_id = None
+    norm = Normalize(vmin=vmin, vmax=vmax)
 
-    print(f"Please choose the indiz_id for the indiz to analyse it with the {theory_name} theory:\n")
+    cmap = cm.get_cmap('turbo')  # Turbo-Colormap aus Matplotlib
 
-    for indiz_row in indizes:
-        indiz_id = indiz_row.get('indiz_id')
-        indiz_ids.append(indiz_id)
-        print(f"id {indiz_id}: {indiz_row.get('indiz_name')}")
 
-    print()
-    while True:
+    start, end = colormap_ranges[cluster]  # Farbskalenbereich
+    norm_position = position / max_length  # Position normalisieren
+    color_value = start + norm_position * (end - start)  # Interpolieren
+
+    rgba = cmap(norm(color_value)) # RGBA-Farbe holen
+    hex_color = mcolors.to_hex(rgba)  # In Hex umwandeln
+    return hex_color
+
+
+def get_csv_file(csv_pfad = Path('data/stocks')) -> str:
+
+    """A function to get a specific csv file in a given directory.
+
+    :csv_pfad: The directory to search for csv files.
+
+    :return: The path to the selected csv file."""
+
+    files = [file.name for file in csv_pfad.iterdir()]
+
+    for index, name in enumerate(files):
+        print(f"{index} eingeben für:", name)
+
+    active = True
+    custom_index = 0
+
+    while active:
         try:
-            choosed_id = int(input("id: "))
+            custom_index = int(input("Eingabe: "))
         except ValueError:
-            print(choosed_id, "is not an integer!")
+            print("Falsche Eingabe")
         else:
-            if choosed_id in indiz_ids:
-                break
+            if custom_index < 0 or custom_index >= len(files):
+                print("Falsche Eingabe")
             else:
-                print(f"There is no {choosed_id} in the database, please try another!")
-                continue
+                active = False
 
-    return choosed_id
+    output_file = f'{csv_pfad}/{files[custom_index]}'
 
+    return output_file
+
+
+if __name__ == "__main__":
+
+    pass

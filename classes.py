@@ -1,18 +1,182 @@
 from datetime import datetime
 from settings import mariadb_config, mariadb_string
-from datalayer import MysqlConnectorManager
 from sqlalchemy import create_engine
 from copy import copy
-from funcs import sort_dict_values
 import pandas as pd
 import logging
 import random
 import math
+import sqlite3
+import mysql.connector
+from time import sleep
+from funcs import sort_dict_values
+
+"""
+1. Ich sollte demnächst den CSV Loader refactoren und zur schnellen Transformationen runtergeladenen Daten benutzen.
+Um es auch bequem meinen implementierten Algorithmen zu übergeben.
+
+2. Den Baseloader wie er jetzt ist brauche ich nicht, er kann weg. Lediglich den API Loader sollte ich versuchen
+umzugestalten. Seine Hauptfunktion wird es sein sich mit API Dienstleistern zu verbinden und Daten abzurufen.
+Ohne viel Schnickschnak kann ich das schon mal rudimentär implementieren ohne zu wissen was noch kommt.
+    - Die Speicherung der Daten soll bewerkstelligt werden.
+    - Die Überprüfung auf vorhandene Daten soll gemacht werden.
+    - Die Aktualisierung der Daten soll gemacht werden.
+    - Ein Zeitstempel soll beim Zugriff der Daten gemacht werden.
+    
+3. Das Datenbankschema anpassen an die neuen Anforderungen.
+
+4. Den Code mit Sphinx dokumentieren und Softwaredokumentation erstellen. 
+
+"""
 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
+
+sql_script = """
+"""
+
+class MysqlConnectorManager:
+
+    def __init__(self, config: dict):
+
+        self.config = config
+
+    def init_conn(self, attempts=3, delay=2):
+
+        """
+        Initialize the connection with my mariadb database.
+
+        :param attempts: amount of attempts
+        :param delay: waiting seconds for trying to reconnect
+        """
+
+        attempt = 1
+        # Implement a reconnection routine
+        while attempt < attempts + 1:
+            try:
+                return mysql.connector.connect(**self.config)
+            except (mysql.connector.Error, IOError) as err:
+                if attempts is attempt:
+                    # Attempts to reconnect failed; returning None
+                    logger.error("Failed to connect, exiting without a connection: %s", err)
+                    return None
+                logger.info(
+                    "Connection failed: %s. Retrying (%d/%d)...",
+                    err,
+                    attempt,
+                    attempts - 1,
+                )
+                # progressive reconnect delay
+                sleep(delay ** attempt)
+                attempt += 1
+        return None
+
+    def select(self, sqlstring):
+
+        mydb = self.init_conn()
+        cursor = mydb.cursor()
+
+        try:
+            cursor.execute(sqlstring)
+        except (mysql.connector.Error, IOError) as err:
+            raise err
+
+        result = cursor.fetchall()
+        mydb.close()
+        return result
+
+    def query(self, sqlstring, val=None) -> int:
+
+        mydb = self.init_conn()
+        mycursor = mydb.cursor()
+
+        try:
+            if isinstance(val, list):
+                mycursor.executemany(sqlstring, val)
+            elif isinstance(val, tuple):
+                mycursor.execute(sqlstring, val)
+            elif not val:
+                mycursor.execute(sqlstring)
+
+        except (mysql.connector.Error, IOError) as err:
+            raise err
+
+        mydb.commit()
+        mydb.close()
+        return mycursor.rowcount
+
+
+class SqliteDatamanager:
+
+    def __init__(self, database_name: str):
+
+        self.connection_string = database_name
+
+    def init_database(self, conn: sqlite3.Connection):
+
+        try:
+            cursor = conn.cursor()
+            cursor.executescript(sql_script)
+        except sqlite3.Error as err:
+            raise err
+        else:
+            cursor.close()
+            conn.commit()
+
+    def init_conn(self):
+
+        try:
+            conn = sqlite3.connect(self.connection_string)
+        except sqlite3.Error as err:
+            raise err
+        else:
+            list_tables = conn.execute("select name from sqlite_master where type='table';").fetchall()
+
+            if len(list_tables) < 2:
+                self.init_database(conn)
+
+            return conn
+
+    def select(self, sqlstring) -> list:
+
+        mydb = self.init_conn()
+        mycursor = mydb.cursor()
+
+        try:
+            mycursor.execute(sqlstring)
+        except sqlite3.Error as err:
+            raise err
+
+        result = mycursor.fetchall()
+        mydb.close()
+        return result
+
+    def select_pragma_info(self, tablename: str):
+
+        return self.select(f"select * from pragma_table_info('{tablename}');")
+
+    def query(self, sqlstring, val=None) -> int:
+
+        mydb = self.init_conn()
+        mycursor = mydb.cursor()
+
+        try:
+            if isinstance(val, list):
+                mycursor.executemany(sqlstring, val)
+            elif isinstance(val, tuple):
+                mycursor.execute(sqlstring, val)
+            elif not val:
+                mycursor.execute(sqlstring)
+
+        except sqlite3.Error as err:
+            raise err
+
+        mydb.commit()
+        mydb.close()
+        return mycursor.rowcount
+
 
 class BaseLoader(MysqlConnectorManager):
 
@@ -28,7 +192,7 @@ class BaseLoader(MysqlConnectorManager):
             return False
         return True
 
-    def upload(self, item_name: str, date: datetime, values: list):
+    def upload(self, item_name: str, date: datetime, values: list): # Überarbeiten
 
         try:
             date: str = date.strftime("%Y-%m-%d")
@@ -61,6 +225,41 @@ class BaseLoader(MysqlConnectorManager):
 
         else:
             return result
+
+    def choose_id(self, theory_name: str) -> int:
+        """
+        This method should simply explain the user which id stands for which index
+
+        :theory_name: Kind of theory name for right naming purposes
+
+        :return: the id for further evaluation
+        """
+
+        indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in self.select("select * from items;")]
+        indiz_ids = []
+        choosed_id = None
+
+        print(f"Please choose the indiz_id for the indiz to analyse it with the {theory_name} theory:\n")
+
+        for indiz_row in indizes:
+            indiz_id = indiz_row.get('indiz_id')
+            indiz_ids.append(indiz_id)
+            print(f"id {indiz_id}: {indiz_row.get('indiz_name')}")
+
+        print()
+        while True:
+            try:
+                choosed_id = int(input("id: "))
+            except ValueError:
+                print(choosed_id, "is not an integer!")
+            else:
+                if choosed_id in indiz_ids:
+                    break
+                else:
+                    print(f"There is no {choosed_id} in the database, please try another!")
+                    continue
+
+        return choosed_id
 
 
 class ApiLoader(BaseLoader):
