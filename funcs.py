@@ -1,7 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from settings import mariadb_config
 from pathlib import Path
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
@@ -178,8 +177,8 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
     fig.show()
 
 
-# Funktion zur Ermittlung der Farbverläufe innerhalb von Clustern
-def get_color(cluster, descriptive_series: pd.Series | dict, max_length):
+# Funktion zur Ermittlung der Farbverläufe innerhalb von Zuletzt
+def get_color(price, descriptive_series: pd.Series | dict, max_length):
     """
     1. Ich muss hier noch den Farbskalenbereich bestimmen und die Position eines jeden Wertes den ich zeichnen will
     normalisieren.
@@ -190,12 +189,7 @@ def get_color(cluster, descriptive_series: pd.Series | dict, max_length):
 
     norm = Normalize(vmin=vmin, vmax=vmax)
 
-    cmap = cm.get_cmap('turbo')  # Turbo-Colormap aus Matplotlib
-
-
-    start, end = colormap_ranges[cluster]  # Farbskalenbereich
-    norm_position = position / max_length  # Position normalisieren
-    color_value = start + norm_position * (end - start)  # Interpolieren
+    cmap = cm.get_cmap('jet')  # Turbo-Colormap aus Matplotlib
 
     rgba = cmap(norm(color_value)) # RGBA-Farbe holen
     hex_color = mcolors.to_hex(rgba)  # In Hex umwandeln

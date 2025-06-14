@@ -11,24 +11,6 @@ import mysql.connector
 from time import sleep
 from funcs import sort_dict_values
 
-"""
-1. Ich sollte demnächst den CSV Loader refactoren und zur schnellen Transformationen runtergeladenen Daten benutzen.
-Um es auch bequem meinen implementierten Algorithmen zu übergeben.
-
-2. Den Baseloader wie er jetzt ist brauche ich nicht, er kann weg. Lediglich den API Loader sollte ich versuchen
-umzugestalten. Seine Hauptfunktion wird es sein sich mit API Dienstleistern zu verbinden und Daten abzurufen.
-Ohne viel Schnickschnak kann ich das schon mal rudimentär implementieren ohne zu wissen was noch kommt.
-    - Die Speicherung der Daten soll bewerkstelligt werden.
-    - Die Überprüfung auf vorhandene Daten soll gemacht werden.
-    - Die Aktualisierung der Daten soll gemacht werden.
-    - Ein Zeitstempel soll beim Zugriff der Daten gemacht werden.
-    
-3. Das Datenbankschema anpassen an die neuen Anforderungen.
-
-4. Den Code mit Sphinx dokumentieren und Softwaredokumentation erstellen. 
-
-"""
-
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
