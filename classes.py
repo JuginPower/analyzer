@@ -29,39 +29,40 @@ class BaseLoader(MysqlConnectorManager):
             return False
         return True
 
-    def upload(self, item_name: str, date: datetime, values: list): # Überarbeiten
+    def upload(self, data_source: list[dict]) -> int | None: # Überarbeiten
+
+        inserted_price_rows = 0
 
         try:
-            date: str = date.strftime("%Y-%m-%d")
-            item_id = self.select(f"select item_id from items where name like '%{item_name}%';")[0][0]
-            result = self.select(f"select high, low, close from stock_price where date='{date}' and item_id='{item_id}';")
+            data_source.sort(key=lambda k: k["symbol"])
+            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%d-%m-%Y"))
 
-            opening = values[0]
-            high = max(values)
-            low = min(values)
-            close = values[-1]
+            for item in data_source:
 
-            if len(result) > 0:
-                # Überprüfung ob Daten für den jeweiligen Tag vorhanden sind.
-                if high < result[0][0]:
-                    high = result[0][0]
+                actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
+                actual_item: str = item.get("symbol")
 
-                if low > result[0][1]:
-                    low = result[0][1]
+                opening = item.get("open")
+                high = item.get("high")
+                low = item.get("low")
+                closing = item.get("price")
+                values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
 
-                result = self.query(f"update stock_price set high='{high}', low='{low}', close='{close}' where date='{date}' and item_id='{item_id}';")
+                # Not known symbols
+                if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
+                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple(actual_item))
+                    message = "Item %s inserted.\nAffected rows: %s"
+                    logger.info(message, actual_item, inserted_symbols)
+                    print(message % (actual_item, inserted_symbols))
 
-            else:
-                result = self.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);",
-                                    tuple([item_id, date, opening, high, low, close]))
+                inserted_price_rows += self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", values)
 
-        except (IndexError, KeyError) as err:
-            print(f"Something goes wrong for {item_name}!")
-            print("Parameters are:", item_name, date, values)
-            raise err
+        except (AttributeError, KeyError, IndexError, ValueError) as err:
+            logger.error("Something goes wrong in BaseLoader.upload: %s", err)
+            return None
 
         else:
-            return result
+            return inserted_price_rows
 
     def choose_id(self, theory_name: str) -> int:
         """
@@ -97,43 +98,6 @@ class BaseLoader(MysqlConnectorManager):
                     continue
 
         return choosed_id
-
-
-class ApiLoader(BaseLoader):
-
-    def __init__(self):
-        super().__init__()
-
-    def upload(self, data_source: list):
-
-        try:
-            data_source.sort(key=lambda k: k["symbol"])
-            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%d-%m-%Y"))
-
-        except (AttributeError, KeyError, IndexError) as err:
-            raise err
-
-        else:
-            old_item = None
-            old_date = None
-            numbers = []
-
-            try:
-                for item in data_source:
-
-                    actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
-                    actual_item: str = item.get("symbol")
-
-                    if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                        result = self.query(f"insert into indexes (symbol) values (%s);", tuple(actual_item))
-
-
-                result = super().upload(data_source)
-
-            except (KeyError, IndexError) as err:
-                raise err
-
-            return result
 
 
 """class CsvLoader(MysqlConnectorManager):
