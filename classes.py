@@ -6,158 +6,13 @@ import pandas as pd
 import logging
 import random
 import math
-import sqlite3
-import mysql.connector
-from time import sleep
 from funcs import sort_dict_values
+from datalayer import MysqlConnectorManager
 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
-
-sql_script = """
-"""
-
-class MysqlConnectorManager:
-
-    def __init__(self, config: dict):
-
-        self.config = config
-
-    def init_conn(self, attempts=3, delay=2):
-
-        """
-        Initialize the connection with my mariadb database.
-
-        :param attempts: amount of attempts
-        :param delay: waiting seconds for trying to reconnect
-        """
-
-        attempt = 1
-        # Implement a reconnection routine
-        while attempt < attempts + 1:
-            try:
-                return mysql.connector.connect(**self.config)
-            except (mysql.connector.Error, IOError) as err:
-                if attempts is attempt:
-                    # Attempts to reconnect failed; returning None
-                    logger.error("Failed to connect, exiting without a connection: %s", err)
-                    return None
-                logger.info(
-                    "Connection failed: %s. Retrying (%d/%d)...",
-                    err,
-                    attempt,
-                    attempts - 1,
-                )
-                # progressive reconnect delay
-                sleep(delay ** attempt)
-                attempt += 1
-        return None
-
-    def select(self, sqlstring):
-
-        mydb = self.init_conn()
-        cursor = mydb.cursor()
-
-        try:
-            cursor.execute(sqlstring)
-        except (mysql.connector.Error, IOError) as err:
-            raise err
-
-        result = cursor.fetchall()
-        mydb.close()
-        return result
-
-    def query(self, sqlstring, val=None) -> int:
-
-        mydb = self.init_conn()
-        mycursor = mydb.cursor()
-
-        try:
-            if isinstance(val, list):
-                mycursor.executemany(sqlstring, val)
-            elif isinstance(val, tuple):
-                mycursor.execute(sqlstring, val)
-            elif not val:
-                mycursor.execute(sqlstring)
-
-        except (mysql.connector.Error, IOError) as err:
-            raise err
-
-        mydb.commit()
-        mydb.close()
-        return mycursor.rowcount
-
-
-class SqliteDatamanager:
-
-    def __init__(self, database_name: str):
-
-        self.connection_string = database_name
-
-    def init_database(self, conn: sqlite3.Connection):
-
-        try:
-            cursor = conn.cursor()
-            cursor.executescript(sql_script)
-        except sqlite3.Error as err:
-            raise err
-        else:
-            cursor.close()
-            conn.commit()
-
-    def init_conn(self):
-
-        try:
-            conn = sqlite3.connect(self.connection_string)
-        except sqlite3.Error as err:
-            raise err
-        else:
-            list_tables = conn.execute("select name from sqlite_master where type='table';").fetchall()
-
-            if len(list_tables) < 2:
-                self.init_database(conn)
-
-            return conn
-
-    def select(self, sqlstring) -> list:
-
-        mydb = self.init_conn()
-        mycursor = mydb.cursor()
-
-        try:
-            mycursor.execute(sqlstring)
-        except sqlite3.Error as err:
-            raise err
-
-        result = mycursor.fetchall()
-        mydb.close()
-        return result
-
-    def select_pragma_info(self, tablename: str):
-
-        return self.select(f"select * from pragma_table_info('{tablename}');")
-
-    def query(self, sqlstring, val=None) -> int:
-
-        mydb = self.init_conn()
-        mycursor = mydb.cursor()
-
-        try:
-            if isinstance(val, list):
-                mycursor.executemany(sqlstring, val)
-            elif isinstance(val, tuple):
-                mycursor.execute(sqlstring, val)
-            elif not val:
-                mycursor.execute(sqlstring)
-
-        except sqlite3.Error as err:
-            raise err
-
-        mydb.commit()
-        mydb.close()
-        return mycursor.rowcount
 
 
 class BaseLoader(MysqlConnectorManager):
@@ -252,7 +107,7 @@ class ApiLoader(BaseLoader):
     def upload(self, data_source: list):
 
         try:
-            data_source.sort(key=lambda k: k["item"])
+            data_source.sort(key=lambda k: k["symbol"])
             data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%d-%m-%Y"))
 
         except (AttributeError, KeyError, IndexError) as err:
@@ -267,28 +122,13 @@ class ApiLoader(BaseLoader):
                 for item in data_source:
 
                     actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
-                    actual_item: str = item.get("item")
+                    actual_item: str = item.get("symbol")
 
-                    if not self.check_presence(tablename="items", column="name", filtername=actual_item):
-                        result = self.query(f"insert into items (name) values (%s);", tuple(actual_item))
+                    if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
+                        result = self.query(f"insert into indexes (symbol) values (%s);", tuple(actual_item))
 
-                    if not old_item:
-                        old_item = actual_item
 
-                    if not old_date:
-                        old_date = actual_date_obj
-
-                    if old_date.day == actual_date_obj.day and old_item in item.get("item"):
-                        numbers.append(item.get("data"))
-
-                    elif not (old_date.day == actual_date_obj.day and old_item in item.get("item")):
-
-                        result = super().upload(old_item, old_date, numbers)
-                        old_item = item.get("item")
-                        old_date = actual_date_obj
-                        numbers = []
-
-                result = super().upload(old_item, old_date, numbers)
+                result = super().upload(data_source)
 
             except (KeyError, IndexError) as err:
                 raise err
@@ -657,7 +497,7 @@ class KMeansClusterMain:
         :param datapoints: A list wich is assumed to be the whole dataset.
         :param centroids: A dictionary with the given centroids.
 
-        :return: An ordered list with the choosen centroids.
+        :return list: An ordered list with the choosen centroids.
         """
 
         ordered_centroids = []
@@ -685,7 +525,7 @@ class KMeansClusterMain:
         :param ordered_clusters: An ordered list of centroids assigned before to the datapoints
         :param centroids: the centroids with the old values
 
-        :return: A dictionary with the old centroid keys but new centroid values
+        :return dict: A dictionary with the old centroid keys but new centroid values
         """
 
         new_centroids = {}

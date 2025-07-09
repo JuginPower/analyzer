@@ -4,7 +4,6 @@ from math import sqrt, pi, exp
 from pathlib import Path
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-from matplotlib.colors import Normalize
 
 
 def to_float(str_number: str, absolut=False) -> float:
@@ -177,22 +176,13 @@ def show_graph_objects(dataframe: pd.DataFrame, title: str, *args):
     fig.show()
 
 
-# Funktion zur Ermittlung der Farbverläufe innerhalb von Zuletzt
-def get_color(price, descriptive_series: pd.Series | dict, max_length):
+def get_color(value, norm):
     """
-    1. Ich muss hier noch den Farbskalenbereich bestimmen und die Position eines jeden Wertes den ich zeichnen will
-    normalisieren.
-    2. Ich muss herausfinden, was Interpolieren eines Farbwertes ist.
+    Ermittelt die Farbe basierend auf dem normalisierten Wert
     """
-    vmin = (descriptive_series["mean"] - descriptive_series["std"]) * 2
-    vmax = (descriptive_series["mean"] + descriptive_series["std"]) * 2
-
-    norm = Normalize(vmin=vmin, vmax=vmax)
-
-    cmap = cm.get_cmap('jet')  # Turbo-Colormap aus Matplotlib
-
-    rgba = cmap(norm(color_value)) # RGBA-Farbe holen
-    hex_color = mcolors.to_hex(rgba)  # In Hex umwandeln
+    cmap = cm.get_cmap('jet')  # Jet-Colormap für Rot-Blau Übergang
+    rgba = cmap(norm(value))
+    hex_color = mcolors.to_hex(rgba)
     return hex_color
 
 

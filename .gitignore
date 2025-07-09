@@ -12,3 +12,4 @@ settings.py
 *.log
 docs/build
 docs/_build
+backtest.rst
