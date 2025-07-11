@@ -11,7 +11,7 @@ from datalayer import MysqlConnectorManager
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename="analyzer.log", encoding="utf-8", level=logging.ERROR,
+logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 
@@ -35,31 +35,30 @@ class BaseLoader(MysqlConnectorManager):
 
         try:
             data_source.sort(key=lambda k: k["symbol"])
-            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%d-%m-%Y"))
+            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%Y-%m-%d"))
 
             for item in data_source:
 
-                actual_date_obj = datetime.strptime(item.get("datum"), "%d-%m-%Y, %H:%M:%S")
+                actual_date_obj = datetime.strptime(item.get("datum"), "%Y-%m-%d")
                 actual_item: str = item.get("symbol")
 
-                opening = item.get("open")
-                high = item.get("high")
-                low = item.get("low")
-                closing = item.get("price")
+                opening = float(item.get("open"))
+                high = float(item.get("high"))
+                low = float(item.get("low"))
+                closing = float(item.get("price"))
                 values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
 
                 # Not known symbols
                 if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple(actual_item))
-                    message = "Item %s inserted.\nAffected rows: %s"
-                    logger.info(message, actual_item, inserted_symbols)
-                    print(message % (actual_item, inserted_symbols))
+                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
+                    message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
+                    print(message)
 
-                inserted_price_rows += self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", values)
+                inserted_price_rows += self.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
 
         except (AttributeError, KeyError, IndexError, ValueError) as err:
             logger.error("Something goes wrong in BaseLoader.upload: %s", err)
-            return None
+            raise err
 
         else:
             return inserted_price_rows
@@ -99,8 +98,8 @@ class BaseLoader(MysqlConnectorManager):
 
         return choosed_id
 
-
-"""class CsvLoader(MysqlConnectorManager):
+"""
+class CsvLoader(MysqlConnectorManager):
 
     def __init__(self):
         super().__init__(mariadb_config)
@@ -141,10 +140,10 @@ class BaseLoader(MysqlConnectorManager):
             raise err
 
         else:
-            return result"""
+            return result
+"""
 
-
-class MainAnalyzer(BaseLoader):
+class MainAnalyzer(MysqlConnectorManager):
 
     def __init__(self, item_id: int):
         super().__init__()
@@ -752,31 +751,4 @@ class TrendColorIndicator:
 
 if __name__=='__main__':
 
-    engine = create_engine(mariadb_string)
-    item_id = 5
-    sql_query = """
-    select 
-        `date`, 
-        `close` 
-    from stock_price 
-        where item_id={item_id}
-    order by `date` asc;
-    """.format(item_id=item_id)
-
-    # Compute percentage change
-    df_ndafi = pd.read_sql(sql_query, con=engine)
-    df_ndafi["date"] = pd.to_datetime(df_ndafi["date"], yearfirst=True)
-    df_ndafi["perc_change"] = df_ndafi["close"].pct_change()
-
-    # Also drop the first row because of pct_change
-    df_ndafi.dropna(inplace=True)
-
-    datapoints = df_ndafi["perc_change"].to_list()
-
-    tdc = TrendColorIndicator(3)
-    tdc.fit(datapoints, 20)
-    df_ndafi["cluster"] = tdc.get_states_probabilities()
-    df_ndafi_copy = df_ndafi.copy()
-    print(df_ndafi.info())
-    print(df_ndafi.head())
-    print(df_ndafi["cluster"].value_counts())
+    pass
