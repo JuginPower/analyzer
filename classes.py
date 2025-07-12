@@ -29,7 +29,7 @@ class BaseLoader(MysqlConnectorManager):
             return False
         return True
 
-    def upload(self, data_source: list[dict]) -> int | None: # Überarbeiten
+    def upload(self, data_source: list[dict]) -> int:
 
         inserted_price_rows = 0
 
@@ -63,40 +63,42 @@ class BaseLoader(MysqlConnectorManager):
         else:
             return inserted_price_rows
 
-    def choose_id(self, theory_name: str) -> int:
+    def choose_id(self) -> str:
         """
-        This method should simply explain the user which id stands for which index
+        This method should simply explain the user which symbol or name stands for which index and return the symbol
+        The user can select the index in order by symbol.
 
-        :theory_name: Kind of theory name for right naming purposes
-
-        :return: the id for further evaluation
+        :return: the symbol for further evaluation
+        :rtype: str
         """
 
-        indizes = [dict(indiz_id=indiz[0], indiz_name=indiz[1]) for indiz in self.select("select * from items;")]
-        indiz_ids = []
-        choosed_id = None
+        indexes = [dict(symbol=index[0], name=index[1]) for index in self.select("select * from indexes;")]
+        symbols = []
+        return_symbol = None
 
-        print(f"Please choose the indiz_id for the indiz to analyse it with the {theory_name} theory:\n")
+        print(f"Please choose the symbol from the index which data should be analysed.")
 
-        for indiz_row in indizes:
-            indiz_id = indiz_row.get('indiz_id')
-            indiz_ids.append(indiz_id)
-            print(f"id {indiz_id}: {indiz_row.get('indiz_name')}")
+        for index_row in indexes:
+            symbol = index_row.get('symbol')
+            name = index_row.get('name')
+            symbols.append(symbol)
+            print(f"symbol {symbol}: {name}")
 
-        print()
+        print("You can typ 'q' to quit.")
         while True:
-            try:
-                choosed_id = int(input("id: "))
-            except ValueError:
-                print(choosed_id, "is not an integer!")
-            else:
-                if choosed_id in indiz_ids:
-                    break
-                else:
-                    print(f"There is no {choosed_id} in the database, please try another!")
-                    continue
 
-        return choosed_id
+            choosed_symbol = input("symbol: ")
+
+            if choosed_symbol in symbols:
+                return_symbol = choosed_symbol
+                break
+            elif choosed_symbol in ("Q", "q"):
+                break
+            else:
+                print(f"There is no {choosed_symbol} in the database, please try another!")
+                continue
+
+        return return_symbol
 
 """
 class CsvLoader(MysqlConnectorManager):
