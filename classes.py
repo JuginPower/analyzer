@@ -6,6 +6,7 @@ import pandas as pd
 import logging
 import random
 import math
+import csv
 from funcs import sort_dict_values
 from datalayer import MysqlConnectorManager, SqliteDatamanager
 
@@ -38,24 +39,88 @@ logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERRO
 class CsvLoader:
 
     def __init__(self):
-        self.cwd_path = Path.cwd()
         self.dataframe = None
 
-    def get_csv_file(self, *paths) -> str:
-
-        """To get a specific csv file in a given directory.
-
-        :param paths: Tuple of subdirectories.
-        :return: The path to the selected csv file.
-        :rtype: str
+    def get_csv_files(self, default_dir="data") -> list[Path]:
 
         """
-        for path in paths: self.cwd_path.joinpath(path)
+        To get a all csv or text files in a given subdirectory.
 
-        files = [file.name for file in self.cwd_path.iterdir() if file.suffix in (".txt", ".csv")]
+        :param default_dir: The default subdirectory where data should be in the current work directory.
+        :return: A list of file paths in a given directory.
+        :rtype: list[Path].
+        """
+
+        files = [file for file in Path.cwd().joinpath(default_dir).iterdir() if file.suffix in (".txt", ".csv")]
+
+        return files
+
+    def clean_csv(self, file: str | Path, cleaning_method="psd"):
+
+        """
+        A method that creates a new csv file depending on the parameter cleaning method.
+
+        :param file: A Path object or path string.
+        :type file: str | Path.
+        :param cleaning_method: The parameter on which depends on the cleaning process.
+        """
+
+        def create_new_csv(file_path):
+
+            new_csv = []
+
+            with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
+                reader = csv.reader(csvfile, delimiter=",")
+                for row in reader:
+                    new_row = []
+                    cleaned_row = row[0].split("\t")
+
+                    if len(cleaned_row) != 3:
+                        continue
+
+                    else:
+                        for val in cleaned_row:
+                            try:
+                                val = float(val.strip())
+                            except ValueError:
+                                if cleaning_method == "psd":
+                                    val = val.replace("q (%)", "q").replace("Q (in %)", "Q")
+                                else:
+                                    pass
+
+                            new_row.append(val)
+
+                        new_csv.append(new_row)
+
+            return new_csv
+
+        def write_new_csv(file_path, csv_list):
+
+            with open(file_path, 'w', newline='', encoding="ISO-8859-1") as csvfile:
+                csv_writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+
+                for line in csv_list:
+                    csv_writer.writerow(line)
+
+        new_csv = create_new_csv(file)
+        write_new_csv(file, new_csv)
+        print("Cleaning csv data completed!")
+
+
+    def get_csv_file(self, default_dir="data") -> pd.DataFrame:
+
+        """
+        To get a specific csv file in a given directory.
+
+        :param default_dir: The default subdirectory where data should be in the current work directory.
+        :return: a Pandas DataFrame.
+        :rtype: pd.DataFrame
+        """
+
+        files = [file for file in Path.cwd().joinpath(default_dir).iterdir() if file.suffix in (".txt", ".csv")]
 
         for index, name in enumerate(files):
-            print(f"{index} eingeben für:", name)
+            print(f"{index} eingeben für:", name.name)
 
         active = True
         custom_index = 0
@@ -71,8 +136,10 @@ class CsvLoader:
                 else:
                     active = False
 
-        output_file = self.cwd_path.joinpath(files[custom_index])
-        return str(output_file)
+        output_file = files[custom_index]
+        print(output_file)
+        df = pd.read_csv(output_file)
+        return df
 
     def load_csv(self, data_file: str):
 
@@ -811,4 +878,9 @@ class TrendColorIndicator:
 
 if __name__=='__main__':
 
-    pass
+    # Cleaning files
+    loader = BaseLoader(None, None)
+    files = loader.csv_manager.get_csv_files()
+
+    for file in files:
+        loader.csv_manager.clean_csv(file)
