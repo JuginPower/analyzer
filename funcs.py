@@ -1,7 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
 from math import sqrt, pi, exp
-from pathlib import Path
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
@@ -184,38 +183,6 @@ def get_color(value, norm):
     rgba = cmap(norm(value))
     hex_color = mcolors.to_hex(rgba)
     return hex_color
-
-
-def get_csv_file(csv_pfad = Path('data/stocks')) -> str:
-
-    """A function to get a specific csv file in a given directory.
-
-    :csv_pfad: The directory to search for csv files.
-
-    :return: The path to the selected csv file."""
-
-    files = [file.name for file in csv_pfad.iterdir()]
-
-    for index, name in enumerate(files):
-        print(f"{index} eingeben für:", name)
-
-    active = True
-    custom_index = 0
-
-    while active:
-        try:
-            custom_index = int(input("Eingabe: "))
-        except ValueError:
-            print("Falsche Eingabe")
-        else:
-            if custom_index < 0 or custom_index >= len(files):
-                print("Falsche Eingabe")
-            else:
-                active = False
-
-    output_file = f'{csv_pfad}/{files[custom_index]}'
-
-    return output_file
 
 
 if __name__ == "__main__":

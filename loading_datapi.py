@@ -1,7 +1,7 @@
 import requests
 from requests.auth import HTTPBasicAuth
 from classes import BaseLoader
-from settings import datapi_url, datapi_username, datapi_passwd
+from settings import datapi_url, datapi_username, datapi_passwd, mariadb_config
 import logging
 
 """
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename="loading_datapi.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
-loader = BaseLoader()
+loader = BaseLoader(mariadb_config, None)
 res = requests.get(datapi_url, auth=HTTPBasicAuth(datapi_username, datapi_passwd))
 
 if 299 >= res.status_code >= 200:
@@ -30,3 +30,4 @@ if 299 >= res.status_code >= 200:
 
 elif not (299 >= res.status_code >= 200):
     print(f"Status Code: {res.status_code} occured!")
+    print(res.json()["response"])

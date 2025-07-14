@@ -1,13 +1,33 @@
 from datetime import datetime
-from settings import mariadb_config, mariadb_string
 from sqlalchemy import create_engine
 from copy import copy
+from pathlib import Path
 import pandas as pd
 import logging
 import random
 import math
 from funcs import sort_dict_values
-from datalayer import MysqlConnectorManager
+from datalayer import MysqlConnectorManager, SqliteDatamanager
+
+"""
+1. Al nächstes die Daten den Prozess in kmeans-vol anstoßen und die Daten beschneiden.
+
+Das Select-Query für die Abfrage aus der Datenbank:
+ 
+select 
+	*
+from
+	stock_price s
+where
+	s.symbol = 'AMZN'
+group BY
+	s.`date`
+order by
+	s.`date` desc;
+
+2. Muss auch Update der Daten über Python bewerkstelligen.
+
+"""
 
 
 logger = logging.getLogger(__name__)
@@ -15,15 +35,82 @@ logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERRO
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 
-class BaseLoader(MysqlConnectorManager):
+class CsvLoader:
 
     def __init__(self):
+        self.cwd_path = Path.cwd()
+        self.dataframe = None
 
-        super().__init__(mariadb_config)
+    def get_csv_file(self, *paths) -> str:
+
+        """To get a specific csv file in a given directory.
+
+        :param paths: Tuple of subdirectories.
+        :return: The path to the selected csv file.
+        :rtype: str
+
+        """
+        for path in paths: self.cwd_path.joinpath(path)
+
+        files = [file.name for file in self.cwd_path.iterdir() if file.suffix in (".txt", ".csv")]
+
+        for index, name in enumerate(files):
+            print(f"{index} eingeben für:", name)
+
+        active = True
+        custom_index = 0
+
+        while active:
+            try:
+                custom_index = int(input("Eingabe: "))
+            except ValueError:
+                print("Falsche Eingabe")
+            else:
+                if custom_index < 0 or custom_index >= len(files):
+                    print("Falsche Eingabe")
+                else:
+                    active = False
+
+        output_file = self.cwd_path.joinpath(files[custom_index])
+        return str(output_file)
+
+    def load_csv(self, data_file: str):
+
+        """
+        Simple loads a data_file into a pandas.DataFrame and save it as attribute
+        """
+
+        self.dataframe = pd.read_csv(data_file)
+
+
+class BaseLoader:
+
+    def __init__(self, data_connection: str | dict | None, sql_script: str | None):
+
+        """
+        Depending on the objects passed, a suitable database connection is optionally established.
+        As a default a CsvLoader object will be initialized.
+
+        :param data_connection: (optional) for str you get a SqliteDatamanager object or sqlalchemy.Engine for a mysql/mariadb database.
+        :type data_connection: str | dict | None
+        """
+
+        self.data_manager = None
+        self.csv_manager = CsvLoader()
+
+        if isinstance(data_connection, str):
+            if "sqlite3" in data_connection or "db" in data_connection:
+                self.data_manager = SqliteDatamanager(data_connection, sql_script)
+
+            elif "mysql" in data_connection or "mariadb" in data_connection:
+                self.data_manager = create_engine(data_connection)
+
+        elif isinstance(data_connection, dict):
+            self.data_manager = MysqlConnectorManager(data_connection)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
-        result = self.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
+        result = self.data_manager.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
 
         if len(result) == 0:
             return False
@@ -31,37 +118,52 @@ class BaseLoader(MysqlConnectorManager):
 
     def upload(self, data_source: list[dict]) -> int:
 
+        """
+        Uploads the data with the help of datamanager to a database.
+
+        :param data_source: A list of dictionary items should match the database schema.
+        :type data_source: list[dict]
+        :raise: Any possible Exception. It Will be logged and raised.
+        :return: number of affected rows in the database
+        :rtype: int
+        """
+
         inserted_price_rows = 0
 
-        try:
-            data_source.sort(key=lambda k: k["symbol"])
-            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%Y-%m-%d"))
+        if self.data_manager:
 
-            for item in data_source:
+            try:
+                data_source.sort(key=lambda k: k["symbol"])
+                data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%Y-%m-%d"))
 
-                actual_date_obj = datetime.strptime(item.get("datum"), "%Y-%m-%d")
-                actual_item: str = item.get("symbol")
+                for item in data_source:
 
-                opening = float(item.get("open"))
-                high = float(item.get("high"))
-                low = float(item.get("low"))
-                closing = float(item.get("price"))
-                values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
+                    actual_date_obj = datetime.strptime(item.get("datum"), "%Y-%m-%d")
+                    actual_item: str = item.get("symbol")
 
-                # Not known symbols
-                if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
-                    message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
-                    print(message)
+                    opening = float(item.get("open"))
+                    high = float(item.get("high"))
+                    low = float(item.get("low"))
+                    closing = float(item.get("price"))
+                    values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
 
-                inserted_price_rows += self.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
+                    # Not known symbols
+                    if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
+                        inserted_symbols = self.data_manager.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
+                        message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
+                        print(message)
 
-        except (AttributeError, KeyError, IndexError, ValueError) as err:
-            logger.error("Something goes wrong in BaseLoader.upload: %s", err)
-            raise err
+                    inserted_price_rows += self.data_manager.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
+
+            except Exception as err:
+                logger.error("Something goes wrong in BaseLoader.upload: %s", err)
+                raise err
+
+            else:
+                return inserted_price_rows
 
         else:
-            return inserted_price_rows
+            raise ConnectionError("No Database connection given for Upload data!")
 
     def choose_id(self) -> str:
         """
@@ -72,7 +174,7 @@ class BaseLoader(MysqlConnectorManager):
         :rtype: str
         """
 
-        indexes = [dict(symbol=index[0], name=index[1]) for index in self.select("select * from indexes;")]
+        indexes = [dict(symbol=index[0], name=index[1]) for index in self.data_manager.select("select * from indexes;")]
         symbols = []
         return_symbol = None
 
@@ -100,58 +202,14 @@ class BaseLoader(MysqlConnectorManager):
 
         return return_symbol
 
-"""
-class CsvLoader(MysqlConnectorManager):
 
-    def __init__(self):
-        super().__init__(mariadb_config)
+class MainAnalyzer(BaseLoader):
 
-    def upload(self, item_id: int, data_file: str):
-
-        values = []
-
-        with open(data_file, "r") as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=",")
-            for row in reader:
-                try:
-                    date_field = reader.fieldnames[0] # Selbsterkennung implementieren
-                    open_field = reader.fieldnames[2]
-                    high_field = reader.fieldnames[3]
-                    low_field = reader.fieldnames[4]
-                    close_field = reader.fieldnames[1]
-
-                    item = (
-                        row[date_field].replace(".", "-"),
-                        item_id,
-                        self.to_float(row[open_field]),
-                        self.to_float(row[high_field]),
-                        self.to_float(row[low_field]),
-                        self.to_float(row[close_field])
-                    )
-
-                except (IndexError, TypeError, ValueError) as err:
-                    raise err
-
-                else:
-                    values.append(item)
-
-        try:
-            result = self.query("insert into stock_price values (?, ?, ?, ?, ?, ?);", values)
-
-        except TypeError as err:
-            raise err
-
-        else:
-            return result
-"""
-
-class MainAnalyzer(MysqlConnectorManager):
-
-    def __init__(self, item_id: int):
-        super().__init__()
+    def __init__(self, item_id: int, mysql_config: dict | None, sql_script: str | None):
+        super().__init__(mysql_config, sql_script)
 
         self.item_id = item_id
-        self.title: str = self.select(f"select name from items where item_id='{self.item_id}';")[0][0]
+        self.title: str = self.data_manager.select(f"select name from items where item_id='{self.item_id}';")[0][0]
 
     def renew(self, item_id: int=None, *args) -> pd.DataFrame:
 
@@ -179,7 +237,7 @@ class MainAnalyzer(MysqlConnectorManager):
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=create_engine(mariadb_string))
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.data_manager)
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 
@@ -318,7 +376,7 @@ class PivotMaker(MainAnalyzer):
     """Noch nicht fertig, pivots.py als Beispiel nehmen"""
 
     def __init__(self, indiz_id: int):
-        super().__init__(indiz_id)
+        super().__init__(indiz_id, None, None)
 
     def prepare_dataframe(self, *args) -> pd.DataFrame:
 
