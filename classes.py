@@ -28,6 +28,8 @@ order by
 
 2. Muss auch Update der Daten über Python bewerkstelligen.
 
+3. sql_script auch für mysql Datenbankanbindungen bewerkstelligen.
+
 """
 
 
@@ -137,7 +139,6 @@ class CsvLoader:
                     active = False
 
         output_file = files[custom_index]
-        print(output_file)
         df = pd.read_csv(output_file)
         return df
 
@@ -155,29 +156,30 @@ class BaseLoader:
     def __init__(self, data_connection: str | dict | None, sql_script: str | None):
 
         """
-        Depending on the objects passed, a suitable database connection is optionally established.
-        As a default a CsvLoader object will be initialized.
+        Depending on the objects passed, a suitable database connection is established.
 
         :param data_connection: (optional) for str you get a SqliteDatamanager object or sqlalchemy.Engine for a mysql/mariadb database.
         :type data_connection: str | dict | None
+        :param sql_script: For initializing a database with ready to go tables in sqlite3.
+        :type sql_script: str
+
         """
 
-        self.data_manager = None
-        self.csv_manager = CsvLoader()
+        self.data_connection = None
 
         if isinstance(data_connection, str):
             if "sqlite3" in data_connection or "db" in data_connection:
-                self.data_manager = SqliteDatamanager(data_connection, sql_script)
+                self.data_connection = SqliteDatamanager(data_connection, sql_script)
 
             elif "mysql" in data_connection or "mariadb" in data_connection:
-                self.data_manager = create_engine(data_connection)
+                self.data_connection = create_engine(data_connection)
 
         elif isinstance(data_connection, dict):
-            self.data_manager = MysqlConnectorManager(data_connection)
+            self.data_connection = MysqlConnectorManager(data_connection)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
-        result = self.data_manager.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
+        result = self.data_connection.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
 
         if len(result) == 0:
             return False
@@ -197,7 +199,7 @@ class BaseLoader:
 
         inserted_price_rows = 0
 
-        if self.data_manager:
+        if self.data_connection:
 
             try:
                 data_source.sort(key=lambda k: k["symbol"])
@@ -216,11 +218,11 @@ class BaseLoader:
 
                     # Not known symbols
                     if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                        inserted_symbols = self.data_manager.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
+                        inserted_symbols = self.data_connection.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
                         message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
                         print(message)
 
-                    inserted_price_rows += self.data_manager.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
+                    inserted_price_rows += self.data_connection.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
 
             except Exception as err:
                 logger.error("Something goes wrong in BaseLoader.upload: %s", err)
@@ -241,7 +243,7 @@ class BaseLoader:
         :rtype: str
         """
 
-        indexes = [dict(symbol=index[0], name=index[1]) for index in self.data_manager.select("select * from indexes;")]
+        indexes = [dict(symbol=index[0], name=index[1]) for index in self.data_connection.select("select * from indexes;")]
         symbols = []
         return_symbol = None
 
@@ -276,7 +278,7 @@ class MainAnalyzer(BaseLoader):
         super().__init__(mysql_config, sql_script)
 
         self.item_id = item_id
-        self.title: str = self.data_manager.select(f"select name from items where item_id='{self.item_id}';")[0][0]
+        self.title: str = self.data_connection.select(f"select name from items where item_id='{self.item_id}';")[0][0]
 
     def renew(self, item_id: int=None, *args) -> pd.DataFrame:
 
@@ -304,7 +306,7 @@ class MainAnalyzer(BaseLoader):
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.data_manager)
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.data_connection)
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 
@@ -878,9 +880,12 @@ class TrendColorIndicator:
 
 if __name__=='__main__':
 
-    # Cleaning files
-    loader = BaseLoader(None, None)
-    files = loader.csv_manager.get_csv_files()
+    loader = CsvLoader()
+
+    # Cleaning files in data subdirectory
+    files = loader.get_csv_files()
 
     for file in files:
-        loader.csv_manager.clean_csv(file)
+        loader.clean_csv(file)
+
+    files = loader.get_csv_files()

@@ -4,7 +4,7 @@ from pathlib import Path
 from classes import SqliteDatamanager
 
 
-csv_pfad = Path('data/giro')
+csv_pfad = Path('temp/giro')
 dateien = [datei.name for datei in csv_pfad.iterdir() if "Kontoumsaetze" in datei.name]
 
 def to_float(str_number: str, absolut=True):

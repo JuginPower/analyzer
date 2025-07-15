@@ -1,0 +1,6 @@
+notebook
+matplotlib
+numpy
+pandas
+plotly
+kaleido
