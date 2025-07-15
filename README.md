@@ -2,8 +2,16 @@
 
 ## 1. First clone the git repository in your workdirectory:
 
-```
+Open your terminal and type:
+
+```commandline
 git clone https://github.com/JuginPower/analyzer.git
+```
+
+Change the directory:
+
+```commandline
+cd analyzer
 ```
 
 And if you want to use the datalayer submodule, type in the terminal:
@@ -40,11 +48,28 @@ C:\Users\projectdirectory> python -m venv analyzer-env
 C:\Users\projectdirectory> analyzer-env\Scripts\activate 
 ```
 
+
 After that you should see the name of your virtual environment in front of the cursor, such as 
 `(analyzer-env) eugen@eugen-ubuntu:~/Schreibtisch/projects/analyzer$`.
 
+Your pip installation is sometimes not the newest, make sure to actualize it:
 
-## 3. Install packages which are depends on your usecases
+**For Linux:**
+
+```commandline
+python -m pip install --upgrade pip 
+```
+
+**For Windows:**
+
+```commandline
+py -m pip install --upgrade pip
+```
+
+It's better to start with the newest package manager to avoid further problems of installing arbitrary packages in 
+your virtual environment.
+
+## 3. Install packages which depend on your use-cases
 
 Now you can install all the program libraries you need for your **purposes**.
 
@@ -62,3 +87,28 @@ python -m pip install -r req.txt
 py -m pip install -r req.txt
 ```
 
+It install all necessary dependencies in [req.txt](req.txt) or [req-frontplot.txt](req-frontplot.txt).
+
+## 4. Make necessary directories
+
+For the program you need especially the *images* and the *data* folder, please make them with:
+
+```commandline
+mkdir data
+mkdir images
+```
+
+## 5. Open the notebooks
+
+To use one of the previously created notebooks, first launch jupyter notebook in the terminal. Enter:
+
+```commandline
+jupyter notebook
+```
+
+And have fun with analyzer! :smiley:
+
+## 6. Close the program after finishing
+
+After you closed your browser please avoid it to simply shut down your code editor or the terminal where the notebook
+is started. Type `CTRL+C` to shut down the notebook kernel in the terminal and follow the instructions.
