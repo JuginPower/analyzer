@@ -109,27 +109,33 @@ class CsvLoader:
         print("Cleaning csv data completed!")
 
 
-    def get_csv_file(self, default_dir="data") -> pd.DataFrame:
+    def get_csv_file(self, default_dir="data") -> pd.DataFrame | None:
 
         """
         To get a specific csv file in a given directory.
 
         :param default_dir: The default subdirectory where data should be in the current work directory.
-        :return: a Pandas DataFrame.
-        :rtype: pd.DataFrame
+        :return: A Pandas DataFrame or None if program is keyboard interrupted.
+        :rtype: pandas.DataFrame
         """
 
         files = [file for file in Path.cwd().joinpath(default_dir).iterdir() if file.suffix in (".txt", ".csv")]
 
         for index, name in enumerate(files):
-            print(f"{index} eingeben für:", name.name)
+            print(f"{index} type for:", name.name)
 
         active = True
         custom_index = 0
 
+        print("You can quit the program with 'q' or 'Q'.")
+
         while active:
             try:
-                custom_index = int(input("Eingabe: "))
+                custom_index = input("Input: ")
+                if custom_index in ("q", "Q"):
+                    break
+
+                custom_index = int(custom_index)
             except ValueError:
                 print("Falsche Eingabe")
             else:
@@ -137,6 +143,9 @@ class CsvLoader:
                     print("Falsche Eingabe")
                 else:
                     active = False
+
+        if isinstance(custom_index, str):
+            return None
 
         output_file = files[custom_index]
         df = pd.read_csv(output_file)

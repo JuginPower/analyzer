@@ -43,9 +43,9 @@ Trading-Indikator.txt
 .idea/
 *.sqlite3
 settings.py
-exploration.ipynb
-kmeans-vol.ipynb
 *.log
 docs/build
 docs/_build
 temp/
+data/
+images/

@@ -1,8 +1,0 @@
-notebook
-matplotlib
-numpy
-pandas
-plotly
-kaleido
-sqlalchemy
-mysql-connector-python

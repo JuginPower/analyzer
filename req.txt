@@ -1,14 +1,8 @@
-beautifulsoup4
 notebook
-matplotlib
 mysql-connector-python
-numpy
 pandas
 plotly
 requests
-scikit-learn
-scipy
 seaborn
-Sphinx
 SQLAlchemy
 kaleido

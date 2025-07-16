@@ -69,11 +69,9 @@ py -m pip install --upgrade pip
 It's better to start with the newest package manager to avoid further problems of installing arbitrary packages in 
 your virtual environment.
 
-## 3. Install packages which depend on your use-cases
+## 3. Install packages
 
-Now you can install all the program libraries you need for your **purposes**.
-
-For `frontplot.ipynb` type `... -r req-frontplot.txt` instead `... -r req.txt`
+Now you can install all the program libraries you need to run all scripts in this project.
 
 - For Linux:
 
@@ -87,7 +85,7 @@ python -m pip install -r req.txt
 py -m pip install -r req.txt
 ```
 
-It install all necessary dependencies in [req.txt](req.txt) or [req-frontplot.txt](req-frontplot.txt).
+It install all necessary dependencies in [req.txt](req.txt).
 
 ## 4. Make necessary directories
 
