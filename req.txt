@@ -1,4 +1,5 @@
 notebook
+matplotlib
 mysql-connector-python
 pandas
 plotly

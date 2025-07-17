@@ -8,28 +8,30 @@ import random
 import math
 import csv
 from funcs import sort_dict_values
-from datalayer import MysqlConnectorManager, SqliteDatamanager
+from datalayer import MysqlDataManager, JsonFileManager, CsvFileManager, SqliteDataManager
+import re
+import json
+
+from settings import mariadb_string, mariadb_config
 
 """
-1. Al nächstes die Daten den Prozess in kmeans-vol anstoßen und die Daten beschneiden.
-
-Das Select-Query für die Abfrage aus der Datenbank:
- 
-select 
-	*
-from
-	stock_price s
-where
-	s.symbol = 'AMZN'
-group BY
-	s.`date`
-order by
-	s.`date` desc;
+1. Als nächstes die Daten den Prozess in kmeans-vol anstoßen und die Daten beschneiden.
 
 2. Muss auch Update der Daten über Python bewerkstelligen.
+    -> Das wird in den Diensten unterteilt
 
 3. sql_script auch für mysql Datenbankanbindungen bewerkstelligen.
+    -> Das wird in den Diensten unterteilt
 
+4. Symrise und Freenet zur Beobachtung hinzufügen
+    -> Plus 3 weitere Produzenten aus Deutschland für zyklische Konsumgüter
+    
+5. Lösung finden für sqlalchemy Engine
+    -> Könnte mit der Unterteilung der ganzen Softwaresysteme in einzelne Dienste automatisch gelöst werden.
+
+6. Spezialisierte Klassen schreiben und für den generellen Gebrauch Klassen in Pakete tun.
+
+7. CSVLoader testen
 """
 
 
@@ -38,39 +40,67 @@ logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERRO
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 
-class CsvLoader:
+class CsvLoader(CsvFileManager):
 
     def __init__(self):
+        super().__init__()
         self.dataframe = None
 
-    def get_csv_files(self, default_dir="data") -> list[Path]:
+    def extract_d905010(self, file_path: Path):
 
         """
-        To get a all csv or text files in a given subdirectory.
+        This method extracts the D10, D50 and D90 values.
 
-        :param default_dir: The default subdirectory where data should be in the current work directory.
-        :return: A list of file paths in a given directory.
-        :rtype: list[Path].
+        :param file_path: The Path to the file
+        :type file_path: Path
         """
 
-        files = [file for file in Path.cwd().joinpath(default_dir).iterdir() if file.suffix in (".txt", ".csv")]
+        csv_attributes = [["name", "value"]]
 
-        return files
+        with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
+            reader = csv.reader(csvfile, delimiter=",")
+
+            for row in reader:
+                match50_10_90 = re.search(
+                    r"(D50)\s*(\d*\.\d*)\(µm\)|(10)\.00\s\(%\)-\s*(\d*\.\d*)\(µm\)|(90)\.00\s\(%\)-\s*(\d*\.\d*)\(µm\)",
+                    row[0])
+
+                if match50_10_90:
+
+                    if match50_10_90.group(1):
+                        csv_attributes.append(["D50", match50_10_90.group(2)])
+                    if match50_10_90.group(3):
+                        csv_attributes.append(["D10", match50_10_90.group(4)])
+
+                    if match50_10_90.group(5):
+                        csv_attributes.append(["D90", match50_10_90.group(6)])
+
+        self.write_new_csv(Path().joinpath(file_path.parent, file_path.stem + "_attributes" + file_path.suffix), csv_attributes)
 
     def clean_csv(self, file: str | Path, cleaning_method="psd"):
 
         """
-        A method that creates a new csv file depending on the parameter cleaning method.
+        A method that creates a new csv file depending on the parameter cleaning method. It does with the help of
+        the create_new_csv and the write_new_csv function.
 
         :param file: A Path object or path string.
         :type file: str | Path.
         :param cleaning_method: The parameter on which depends on the cleaning process.
+
         """
 
-        def create_new_csv(file_path):
+        def create_new_csv(file_path: str | Path):
+
+            """
+            A function in the method clean_csv for creating a new csv file.
+
+            :param file_path: Needs a file path to read the file.
+            :type file_path: str | Path
+            :return: A dictionary with the cleaned data and extracted attributes.
+            """
 
             new_csv = []
-
+            csv_attributes = []
             with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",")
                 for row in reader:
@@ -96,20 +126,12 @@ class CsvLoader:
 
             return new_csv
 
-        def write_new_csv(file_path, csv_list):
-
-            with open(file_path, 'w', newline='', encoding="ISO-8859-1") as csvfile:
-                csv_writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-
-                for line in csv_list:
-                    csv_writer.writerow(line)
-
+        self.extract_d905010(file) # Testen
         new_csv = create_new_csv(file)
-        write_new_csv(file, new_csv)
+        self.write_new_csv(file, new_csv)
         print("Cleaning csv data completed!")
 
-
-    def get_csv_file(self, default_dir="data") -> pd.DataFrame | None:
+    def get_csv_file(self, default_dir="data") -> pd.DataFrame | None: # Überarbeiten
 
         """
         To get a specific csv file in a given directory.
@@ -160,35 +182,21 @@ class CsvLoader:
         self.dataframe = pd.read_csv(data_file)
 
 
-class BaseLoader:
+class JsonLoader(JsonFileManager):
 
-    def __init__(self, data_connection: str | dict | None, sql_script: str | None):
+    def __init__(self):
+        super().__init__()
 
-        """
-        Depending on the objects passed, a suitable database connection is established.
 
-        :param data_connection: (optional) for str you get a SqliteDatamanager object or sqlalchemy.Engine for a mysql/mariadb database.
-        :type data_connection: str | dict | None
-        :param sql_script: For initializing a database with ready to go tables in sqlite3.
-        :type sql_script: str
 
-        """
+class BaseLoader(MysqlDataManager):
 
-        self.data_connection = None
-
-        if isinstance(data_connection, str):
-            if "sqlite3" in data_connection or "db" in data_connection:
-                self.data_connection = SqliteDatamanager(data_connection, sql_script)
-
-            elif "mysql" in data_connection or "mariadb" in data_connection:
-                self.data_connection = create_engine(data_connection)
-
-        elif isinstance(data_connection, dict):
-            self.data_connection = MysqlConnectorManager(data_connection)
+    def __init__(self):
+        super().__init__(mariadb_config)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
-        result = self.data_connection.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
+        result = self.select(f"select {column} from {tablename} where {column} like '%{filtername}%';")
 
         if len(result) == 0:
             return False
@@ -208,51 +216,46 @@ class BaseLoader:
 
         inserted_price_rows = 0
 
-        if self.data_connection:
+        try:
+            data_source.sort(key=lambda k: k["symbol"])
+            data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%Y-%m-%d"))
 
-            try:
-                data_source.sort(key=lambda k: k["symbol"])
-                data_source.sort(key=lambda k: datetime.strptime(k["datum"].split(",")[0], "%Y-%m-%d"))
+            for item in data_source:
 
-                for item in data_source:
+                actual_date_obj = datetime.strptime(item.get("datum"), "%Y-%m-%d")
+                actual_item: str = item.get("symbol")
 
-                    actual_date_obj = datetime.strptime(item.get("datum"), "%Y-%m-%d")
-                    actual_item: str = item.get("symbol")
+                opening = float(item.get("open"))
+                high = float(item.get("high"))
+                low = float(item.get("low"))
+                closing = float(item.get("price"))
+                values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
 
-                    opening = float(item.get("open"))
-                    high = float(item.get("high"))
-                    low = float(item.get("low"))
-                    closing = float(item.get("price"))
-                    values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
+                # Not known symbols
+                if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
+                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
+                    message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
+                    print(message)
 
-                    # Not known symbols
-                    if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                        inserted_symbols = self.data_connection.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
-                        message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
-                        print(message)
+                inserted_price_rows += self.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
 
-                    inserted_price_rows += self.data_connection.query("insert into stock_price values (%s, %s, %s, %s, %s, %s);", values)
-
-            except Exception as err:
-                logger.error("Something goes wrong in BaseLoader.upload: %s", err)
-                raise err
-
-            else:
-                return inserted_price_rows
+        except Exception as err:
+            logger.error("Something goes wrong in BaseLoader.upload: %s", err)
+            raise err
 
         else:
-            raise ConnectionError("No Database connection given for Upload data!")
+            return inserted_price_rows
 
-    def choose_id(self) -> str:
+    def choose_id(self) -> str | None:
         """
-        This method should simply explain the user which symbol or name stands for which index and return the symbol
+        This method should simply explain the user which symbol or name stands for which index and return the symbol.
         The user can select the index in order by symbol.
 
-        :return: the symbol for further evaluation
-        :rtype: str
+        :return: the symbol for further evaluation or None
+        :rtype: str | None
         """
 
-        indexes = [dict(symbol=index[0], name=index[1]) for index in self.data_connection.select("select * from indexes;")]
+        indexes = [dict(symbol=index[0], name=index[1]) for index in self.select("select * from indexes;")]
         symbols = []
         return_symbol = None
 
@@ -283,11 +286,11 @@ class BaseLoader:
 
 class MainAnalyzer(BaseLoader):
 
-    def __init__(self, item_id: int, mysql_config: dict | None, sql_script: str | None):
-        super().__init__(mysql_config, sql_script)
+    def __init__(self, item_id):
+        super().__init__()
 
         self.item_id = item_id
-        self.title: str = self.data_connection.select(f"select name from items where item_id='{self.item_id}';")[0][0]
+        self.title: str = self.select(f"select name from items where item_id='{self.item_id}';")[0][0]
 
     def renew(self, item_id: int=None, *args) -> pd.DataFrame:
 
@@ -315,7 +318,7 @@ class MainAnalyzer(BaseLoader):
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=self.data_connection)
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=create_engine(mariadb_string))
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 
@@ -892,9 +895,10 @@ if __name__=='__main__':
     loader = CsvLoader()
 
     # Cleaning files in data subdirectory
-    files = loader.get_csv_files()
+    files = loader.get_files()
 
     for file in files:
         loader.clean_csv(file)
 
-    files = loader.get_csv_files()
+    files = loader.get_files()
+    print(files)
