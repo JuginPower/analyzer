@@ -8,11 +8,8 @@ import random
 import math
 import csv
 from funcs import sort_dict_values
-from datalayer import MysqlDataManager, JsonFileManager, CsvFileManager, SqliteDataManager
+from datalayer import MysqlDataManager, CsvFileManager
 import re
-import json
-
-from settings import mariadb_string, mariadb_config
 
 """
 1. Als nächstes die Daten den Prozess in kmeans-vol anstoßen und die Daten beschneiden.
@@ -25,13 +22,7 @@ from settings import mariadb_string, mariadb_config
 
 4. Symrise und Freenet zur Beobachtung hinzufügen
     -> Plus 3 weitere Produzenten aus Deutschland für zyklische Konsumgüter
-    
-5. Lösung finden für sqlalchemy Engine
-    -> Könnte mit der Unterteilung der ganzen Softwaresysteme in einzelne Dienste automatisch gelöst werden.
 
-6. Spezialisierte Klassen schreiben und für den generellen Gebrauch Klassen in Pakete tun.
-
-7. CSVLoader testen
 """
 
 
@@ -40,7 +31,7 @@ logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERRO
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
 
 
-class CsvLoader(CsvFileManager):
+class CsvPsdDataLoader(CsvFileManager):
 
     def __init__(self):
         super().__init__()
@@ -49,13 +40,14 @@ class CsvLoader(CsvFileManager):
     def extract_d905010(self, file_path: Path):
 
         """
-        This method extracts the D10, D50 and D90 values.
+        This method extracts the D10, D50 and D90 values and save it in self.dataframe
 
         :param file_path: The Path to the file
         :type file_path: Path
         """
 
-        csv_attributes = [["name", "value"]]
+        extracted_data = [["D50", "D10", "D90"]]
+        new_row = []
 
         with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
             reader = csv.reader(csvfile, delimiter=",")
@@ -67,132 +59,62 @@ class CsvLoader(CsvFileManager):
 
                 if match50_10_90:
 
+                    if len(new_row) == 3:
+                        extracted_data.append(new_row)
+                        new_row.clear()
+
                     if match50_10_90.group(1):
-                        csv_attributes.append(["D50", match50_10_90.group(2)])
+                        new_row.append(float(match50_10_90.group(2)))
                     if match50_10_90.group(3):
-                        csv_attributes.append(["D10", match50_10_90.group(4)])
-
+                        new_row.append(float(match50_10_90.group(4)))
                     if match50_10_90.group(5):
-                        csv_attributes.append(["D90", match50_10_90.group(6)])
+                        new_row.append(float(match50_10_90.group(6)))
 
-        self.write_new_csv(Path().joinpath(file_path.parent, file_path.stem + "_attributes" + file_path.suffix), csv_attributes)
+        if new_row:
+            extracted_data.append(new_row)
 
-    def clean_csv(self, file: str | Path, cleaning_method="psd"):
+        columns = extracted_data.pop(0)
+        self.dataframe = pd.DataFrame(extracted_data, columns=columns)
 
-        """
-        A method that creates a new csv file depending on the parameter cleaning method. It does with the help of
-        the create_new_csv and the write_new_csv function.
-
-        :param file: A Path object or path string.
-        :type file: str | Path.
-        :param cleaning_method: The parameter on which depends on the cleaning process.
+    def extract_main_data(self, file_path: Path):
 
         """
+        For creating a new csv data and save it as pandas.DataFrame in self.dataframe
 
-        def create_new_csv(file_path: str | Path):
-
-            """
-            A function in the method clean_csv for creating a new csv file.
-
-            :param file_path: Needs a file path to read the file.
-            :type file_path: str | Path
-            :return: A dictionary with the cleaned data and extracted attributes.
-            """
-
-            new_csv = []
-            csv_attributes = []
-            with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
-                reader = csv.reader(csvfile, delimiter=",")
-                for row in reader:
-                    new_row = []
-                    cleaned_row = row[0].split("\t")
-
-                    if len(cleaned_row) != 3:
-                        continue
-
-                    else:
-                        for val in cleaned_row:
-                            try:
-                                val = float(val.strip())
-                            except ValueError:
-                                if cleaning_method == "psd":
-                                    val = val.replace("q (%)", "q").replace("Q (in %)", "Q")
-                                else:
-                                    pass
-
-                            new_row.append(val)
-
-                        new_csv.append(new_row)
-
-            return new_csv
-
-        self.extract_d905010(file) # Testen
-        new_csv = create_new_csv(file)
-        self.write_new_csv(file, new_csv)
-        print("Cleaning csv data completed!")
-
-    def get_csv_file(self, default_dir="data") -> pd.DataFrame | None: # Überarbeiten
-
-        """
-        To get a specific csv file in a given directory.
-
-        :param default_dir: The default subdirectory where data should be in the current work directory.
-        :return: A Pandas DataFrame or None if program is keyboard interrupted.
-        :rtype: pandas.DataFrame
+        :param file_path: Needs a file path to read the file.
+        :type file_path: Path
         """
 
-        files = [file for file in Path.cwd().joinpath(default_dir).iterdir() if file.suffix in (".txt", ".csv")]
+        extracted_data = []
+        with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
+            reader = csv.reader(csvfile, delimiter=",")
+            for row in reader:
+                new_row = []
+                cleaned_row = row[0].split("\t")
 
-        for index, name in enumerate(files):
-            print(f"{index} type for:", name.name)
+                if len(cleaned_row) != 3:
+                    continue
 
-        active = True
-        custom_index = 0
-
-        print("You can quit the program with 'q' or 'Q'.")
-
-        while active:
-            try:
-                custom_index = input("Input: ")
-                if custom_index in ("q", "Q"):
-                    break
-
-                custom_index = int(custom_index)
-            except ValueError:
-                print("Falsche Eingabe")
-            else:
-                if custom_index < 0 or custom_index >= len(files):
-                    print("Falsche Eingabe")
                 else:
-                    active = False
+                    for val in cleaned_row:
+                        try:
+                            val = float(val.strip())
+                        except ValueError:
 
-        if isinstance(custom_index, str):
-            return None
+                            val = val.replace("q (%)", "q").replace("Q (in %)", "Q")
 
-        output_file = files[custom_index]
-        df = pd.read_csv(output_file)
-        return df
+                        new_row.append(val)
 
-    def load_csv(self, data_file: str):
+                    extracted_data.append(new_row)
 
-        """
-        Simple loads a data_file into a pandas.DataFrame and save it as attribute
-        """
-
-        self.dataframe = pd.read_csv(data_file)
-
-
-class JsonLoader(JsonFileManager):
-
-    def __init__(self):
-        super().__init__()
-
+        columns = extracted_data.pop(0)
+        self.dataframe = pd.DataFrame(extracted_data, columns=columns)
 
 
 class BaseLoader(MysqlDataManager):
 
-    def __init__(self):
-        super().__init__(mariadb_config)
+    def __init__(self, db_config: dict):
+        super().__init__(db_config)
 
     def check_presence(self, tablename: str, column: str, filtername: str):
 
@@ -286,10 +208,11 @@ class BaseLoader(MysqlDataManager):
 
 class MainAnalyzer(BaseLoader):
 
-    def __init__(self, item_id):
-        super().__init__()
+    def __init__(self, item_id, db_config: dict, db_string: str):
+        super().__init__(db_config)
 
         self.item_id = item_id
+        self.db_string = db_string
         self.title: str = self.select(f"select name from items where item_id='{self.item_id}';")[0][0]
 
     def renew(self, item_id: int=None, *args) -> pd.DataFrame:
@@ -313,12 +236,12 @@ class MainAnalyzer(BaseLoader):
     def prepare_dataframe(self, *args) -> pd.DataFrame:
 
         """
-        Prepares and sorts the data for analysis and groups if necessary
+        Prepares and sorts the data for analysis and groups if necessary.
 
         :param args: It is important that the argument for sorting by month (M) or week (W) is specified first.
         """
 
-        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=create_engine(mariadb_string))
+        df = pd.read_sql(f"select * from stock_price where item_id='{self.item_id}';", con=create_engine(self.db_string))
         df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
         df = df.sort_values("date").reset_index(drop=True)
 
@@ -456,8 +379,8 @@ class PivotMaker(MainAnalyzer):
 
     """Noch nicht fertig, pivots.py als Beispiel nehmen"""
 
-    def __init__(self, indiz_id: int):
-        super().__init__(indiz_id, None, None)
+    def __init__(self, indiz_id: int, db_config: dict, db_string: str):
+        super().__init__(indiz_id, db_config, db_string)
 
     def prepare_dataframe(self, *args) -> pd.DataFrame:
 
