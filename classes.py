@@ -12,7 +12,8 @@ from datalayer import MysqlDataManager, CsvFileManager
 import re
 
 """
-1. Als nächstes die Daten den Prozess in kmeans-vol anstoßen und die Daten beschneiden.
+1. Als nächstes die Daten bereinigen und die kmeans observation implementieren.
+    -> Bei der Datenbereinigung ab HD weiter machen
 
 2. Muss auch Update der Daten über Python bewerkstelligen.
     -> Das wird in den Diensten unterteilt
@@ -23,6 +24,7 @@ import re
 4. Symrise und Freenet zur Beobachtung hinzufügen
     -> Plus 3 weitere Produzenten aus Deutschland für zyklische Konsumgüter
 
+5. SQL-Queries entfernen, views in der Datenbank erstellen und mit denen arbeiten
 """
 
 
@@ -204,6 +206,12 @@ class BaseLoader(MysqlDataManager):
                 continue
 
         return return_symbol
+
+    def select_data(self, id_number=None):
+
+        # Choose_id soll mehr wie eine private Methode für select_data funktionieren
+
+        pass
 
 
 class MainAnalyzer(BaseLoader):
@@ -815,13 +823,4 @@ class TrendColorIndicator:
 
 if __name__=='__main__':
 
-    loader = CsvLoader()
-
-    # Cleaning files in data subdirectory
-    files = loader.get_files()
-
-    for file in files:
-        loader.clean_csv(file)
-
-    files = loader.get_files()
-    print(files)
+    pass
