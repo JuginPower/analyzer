@@ -11,106 +11,12 @@ from funcs import sort_dict_values
 from datalayer import MysqlDataManager, CsvFileManager
 import re
 
-"""
-1. Als nächstes die Daten bereinigen und die kmeans observation implementieren.
-    -> Bei der Datenbereinigung ab HD weiter machen
 
-2. Muss auch Update der Daten über Python bewerkstelligen.
-    -> Das wird in den Diensten unterteilt
-
-3. sql_script auch für mysql Datenbankanbindungen bewerkstelligen.
-    -> Das wird in den Diensten unterteilt
-
-4. Symrise und Freenet zur Beobachtung hinzufügen
-    -> Plus 3 weitere Produzenten aus Deutschland für zyklische Konsumgüter
-
-5. SQL-Queries entfernen, views in der Datenbank erstellen und mit denen arbeiten
-"""
 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="classes.log", encoding="utf-8", level=logging.ERROR,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d, %H:%M:%S')
-
-
-class CsvPsdDataLoader(CsvFileManager):
-
-    def __init__(self):
-        super().__init__()
-        self.dataframe = None
-
-    def extract_d905010(self, file_path: Path):
-
-        """
-        This method extracts the D10, D50 and D90 values and save it in self.dataframe
-
-        :param file_path: The Path to the file
-        :type file_path: Path
-        """
-
-        extracted_data = [["D50", "D10", "D90"]]
-        new_row = []
-
-        with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
-            reader = csv.reader(csvfile, delimiter=",")
-
-            for row in reader:
-                match50_10_90 = re.search(
-                    r"(D50)\s*(\d*\.\d*)\(µm\)|(10)\.00\s\(%\)-\s*(\d*\.\d*)\(µm\)|(90)\.00\s\(%\)-\s*(\d*\.\d*)\(µm\)",
-                    row[0])
-
-                if match50_10_90:
-
-                    if len(new_row) == 3:
-                        extracted_data.append(new_row)
-                        new_row.clear()
-
-                    if match50_10_90.group(1):
-                        new_row.append(float(match50_10_90.group(2)))
-                    if match50_10_90.group(3):
-                        new_row.append(float(match50_10_90.group(4)))
-                    if match50_10_90.group(5):
-                        new_row.append(float(match50_10_90.group(6)))
-
-        if new_row:
-            extracted_data.append(new_row)
-
-        columns = extracted_data.pop(0)
-        self.dataframe = pd.DataFrame(extracted_data, columns=columns)
-
-    def extract_main_data(self, file_path: Path):
-
-        """
-        For creating a new csv data and save it as pandas.DataFrame in self.dataframe
-
-        :param file_path: Needs a file path to read the file.
-        :type file_path: Path
-        """
-
-        extracted_data = []
-        with open(file_path, "r", encoding="ISO-8859-1") as csvfile:
-            reader = csv.reader(csvfile, delimiter=",")
-            for row in reader:
-                new_row = []
-                cleaned_row = row[0].split("\t")
-
-                if len(cleaned_row) != 3:
-                    continue
-
-                else:
-                    for val in cleaned_row:
-                        try:
-                            val = float(val.strip())
-                        except ValueError:
-
-                            val = val.replace("q (%)", "q").replace("Q (in %)", "Q")
-
-                        new_row.append(val)
-
-                    extracted_data.append(new_row)
-
-        columns = extracted_data.pop(0)
-        self.dataframe = pd.DataFrame(extracted_data, columns=columns)
 
 
 class BaseLoader(MysqlDataManager):

@@ -38,6 +38,7 @@ coverage.xml
 # Custom
 .vscode/
 Notizen.txt
+Notizen.md
 Trading-Indikator.txt
 *.pdf
 .idea/
