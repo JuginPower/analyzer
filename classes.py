@@ -1,17 +1,12 @@
 from datetime import datetime
 from sqlalchemy import create_engine
 from copy import copy
-from pathlib import Path
 import pandas as pd
 import logging
 import random
 import math
-import csv
 from funcs import sort_dict_values
-from datalayer import MysqlDataManager, CsvFileManager
-import re
-
-
+from datalayer import MysqlDataManager
 
 
 logger = logging.getLogger(__name__)
@@ -62,8 +57,8 @@ class BaseLoader(MysqlDataManager):
                 values = tuple([actual_item, actual_date_obj.strftime("%Y-%m-%d"), opening, high, low, closing])
 
                 # Not known symbols
-                if not self.check_presence(tablename="indexes", column="symbol", filtername=actual_item):
-                    inserted_symbols = self.query(f"insert into indexes (symbol) values (%s);", tuple([actual_item]))
+                if not self.check_presence(tablename="stocks", column="symbol", filtername=actual_item):
+                    inserted_symbols = self.query(f"insert into stocks (symbol) values (%s);", tuple([actual_item]))
                     message = "Item {} inserted.\nAffected rows: {}".format(actual_item, inserted_symbols)
                     print(message)
 
@@ -85,13 +80,13 @@ class BaseLoader(MysqlDataManager):
         :rtype: str | None
         """
 
-        indexes = [dict(symbol=index[0], name=index[1]) for index in self.select("select * from indexes;")]
+        stocks = [dict(symbol=stock[0], name=stock[1]) for stock in self.select("select * from stocks;")]
         symbols = []
         return_symbol = None
 
         print(f"Please choose the symbol from the index which data should be analysed.")
 
-        for index_row in indexes:
+        for index_row in stocks:
             symbol = index_row.get('symbol')
             name = index_row.get('name')
             symbols.append(symbol)
