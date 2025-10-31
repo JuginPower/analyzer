@@ -20,8 +20,6 @@ performance of certain stocks, companies, or indices on the financial market.
 
 **Explanation**:
 
-*To be continued*
-
 What you see here is my attempt to identify overheated phases in the price movements of stock companies using the AI 
 KMeans clustering algorithm. The algorithm itself falls under the category of unsupervised machine learning algorithms.
 

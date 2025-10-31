@@ -108,11 +108,10 @@ class BaseLoader(MysqlDataManager):
 
         return return_symbol
 
-    def select_data(self, id_number=None):
+    def get_stock_name(self, symbol: str):
 
-        # Choose_id soll mehr wie eine private Methode für select_data funktionieren
-
-        pass
+        result = self.select(f"select name from stocks where symbol='{symbol}';")
+        return result[0][0]
 
 
 class KMeansClusterMain:
