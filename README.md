@@ -9,7 +9,7 @@
 The goal of this project is to use price analysis and descriptive statistics algorithms to make predictions about the
 performance of certain stocks, companies, or indices on the financial market.
 
-![Development]https://img.shields.io/badge/Status-In%20Development-yellow
+![Development](https://img.shields.io/badge/Status-In%20Development-yellow)
 
 ## Useful Features
 
@@ -17,32 +17,26 @@ performance of certain stocks, companies, or indices on the financial market.
 
 ![NRDBY.png](docs/pics/NRDBY.png)
 
-
-**Explanation**:
-
 What you see here is my attempt to identify overheated phases in the price movements of stock companies using the AI 
 KMeans clustering algorithm. The algorithm itself falls under the category of unsupervised machine learning algorithms.
+The overheated phases should be the dark colorized price line dark blue or dark red. Where a trend reversal is expected.
 
-I used this algorithm to first visually examine the volatility of various stock indices. For example this picture bellow 
-show you daily percentage change in the closing price from Nordea Bank Abp ADR .
- 
-Where the volatility of the percentage change is particularly high, the price also falls during this period. Regardless 
-of whether there were percentage changes upwards or downwards. However, it is usually the first downward outliers that 
-reveal a bearish phase. In all other cases, the price always rises steeply.
+### How it works
 
-The algorithm works by iteratively assigning data points to clusters based on their proximity to a central point, and 
+> The algorithm works by iteratively assigning data points to clusters based on their proximity to a central point, and 
 then recalculating that central point to better represent the assigned data.
 
-If you’re thirsty for more technical details how the algorithm work, I recommend diving into
+This nice Video bellow explain everything what you need to know how the algorithm itself works.
 
-.. figure:: https://img.youtube.com/vi/_aWzGGNrcic/0.jpg
-   :target: https://www.youtube.com/watch?v=_aWzGGNrcic
-   :alt: Victor Lavrenko's video series
+[![Victor Lavrenko's video series](https://img.youtube.com/vi/_aWzGGNrcic/0.jpg)](https://www.youtube.com/watch?v=_aWzGGNrcic)
 
-   Victor Lavrenko's video series
+I looked this Video from [Victor Lavrenko](https://www.youtube.com/@vlavrenko) at least 50 times to implement this 
+algorithm by myself. Thanks to him!
 
+### How I used it
 
-As an excellent data science teacher, he provides valuable insights and knowledge.
+I'll refrain from going into the exact details of how I implemented the algorithm. But if you're interested in the 
+precise workings of my version of the [KMeans clustering algorithm...](docs/kmeans.md)
 
 Pivot Level-Chart
 -----------------
