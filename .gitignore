@@ -51,3 +51,7 @@ archiv/
 data/
 images/
 exploration.ipynb
+build/
+make.bat
+Makefile
+
